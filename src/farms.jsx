@@ -51,7 +51,7 @@ const FarmCard = ({ farm }) => {
 
   const area = getAreaInHectares(farm.location_data);
   const imageUrl = getMapImageUrl(farm.location_data);
-  const milestonesComplete = 3; // Placeholder data
+  const milestonesComplete = 0; // Placeholder data
   const totalMilestones = 5; // Placeholder data
   const progress = (milestonesComplete / totalMilestones) * 100;
 
