@@ -168,29 +168,50 @@ const DashboardPage = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        // --- Part 1: Fetch User Profile ---
+        // Get the current user's session first
         const {
           data: { session },
+          error: sessionError,
         } = await supabase.auth.getSession();
-        if (session?.user) {
-          const { data: profileData, error: profileError } = await supabase
+        if (sessionError) throw sessionError;
+        if (!session?.user) {
+          // If no user, no need to fetch anything else
+          setLoading(false);
+          return;
+        }
+        const userId = session.user.id;
+
+        // --- Fetch all data in parallel ---
+        const [profileRes, farmsRes, milestonesRes] = await Promise.all([
+          supabase
             .from("profiles")
             .select("full_name")
-            .eq("id", session.user.id)
-            .single();
-          if (profileError) throw profileError;
-          setUserProfile(profileData);
-        }
+            .eq("id", userId)
+            .single(),
+          supabase.from("farms").select("location_data").eq("user_id", userId),
+          supabase
+            .from("cycle_milestones")
+            .select(
+              `
+                            id,
+                            status,
+                            crop_cycles!inner(farms(id, name)),
+                            milestone_templates(name)
+                        `
+            )
+            .eq("crop_cycles.user_id", userId) // <-- THE CRITICAL FIX
+            .eq("crop_cycles.is_active", true),
+        ]);
 
-        // --- Part 2: Fetch Farms for Summary ---
-        const { data: farms, error: farmsError } = await supabase
-          .from("farms")
-          .select("location_data");
-        if (farmsError) throw farmsError;
+        // Process Profile
+        if (profileRes.error) throw profileRes.error;
+        setUserProfile(profileRes.data);
 
-        if (farms) {
+        // Process Farms for Summary
+        if (farmsRes.error) throw farmsRes.error;
+        if (farmsRes.data) {
           let totalMeters = 0;
-          farms.forEach((farm) => {
+          farmsRes.data.forEach((farm) => {
             if (farm.location_data?.length > 2) {
               const coords = farm.location_data.map((p) => [p.lng, p.lat]);
               if (
@@ -204,45 +225,112 @@ const DashboardPage = () => {
           });
           const totalAcres = totalMeters / 4046.86;
           setFarmSummary({
-            count: farms.length,
+            count: farmsRes.data.length,
             totalAcreage: totalAcres.toFixed(1),
           });
         }
 
-        // --- Part 3: Fetch Milestones for Summary ---
-        const { data: milestones, error: milestonesError } = await supabase
-          .from("cycle_milestones")
-          .select(
-            `
-                        id,
-                        status,
-                        crop_cycles!inner ( is_active, farms (id, name) ),
-                        milestone_templates ( name )
-                    `
-          )
-          .eq("crop_cycles.is_active", true);
-
-        if (milestonesError) throw milestonesError;
-
-        if (milestones) {
+        // Process Milestones for Summary
+        if (milestonesRes.error) throw milestonesRes.error;
+        if (milestonesRes.data) {
+          const milestones = milestonesRes.data;
           const completed = milestones.filter(
             (m) => m.status === "Completed"
           ).length;
           const total = milestones.length;
           const progress = total > 0 ? (completed / total) * 100 : 0;
-
           const upcoming = milestones.filter((m) => m.status !== "Completed");
           setMilestoneSummary({ upcoming, progress: progress.toFixed(0) });
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error.message);
       } finally {
-        setLoading(false); // Only set loading to false after ALL data is fetched
+        setLoading(false);
       }
     };
 
     fetchDashboardData();
   }, []);
+
+  //this one good
+  // useEffect(() => {
+  //   const fetchDashboardData = async () => {
+  //     try {
+  //       // --- Part 1: Fetch User Profile ---
+  //       const {
+  //         data: { session },
+  //       } = await supabase.auth.getSession();
+  //       if (session?.user) {
+  //         const { data: profileData, error: profileError } = await supabase
+  //           .from("profiles")
+  //           .select("full_name")
+  //           .eq("id", session.user.id)
+  //           .single();
+  //         if (profileError) throw profileError;
+  //         setUserProfile(profileData);
+  //       }
+
+  //       // --- Part 2: Fetch Farms for Summary ---
+  //       const { data: farms, error: farmsError } = await supabase
+  //         .from("farms")
+  //         .select("location_data");
+  //       if (farmsError) throw farmsError;
+
+  //       if (farms) {
+  //         let totalMeters = 0;
+  //         farms.forEach((farm) => {
+  //           if (farm.location_data?.length > 2) {
+  //             const coords = farm.location_data.map((p) => [p.lng, p.lat]);
+  //             if (
+  //               coords[0][0] !== coords[coords.length - 1][0] ||
+  //               coords[0][1] !== coords[coords.length - 1][1]
+  //             ) {
+  //               coords.push(coords[0]);
+  //             }
+  //             totalMeters += turfArea(turfPolygon([coords]));
+  //           }
+  //         });
+  //         const totalAcres = totalMeters / 4046.86;
+  //         setFarmSummary({
+  //           count: farms.length,
+  //           totalAcreage: totalAcres.toFixed(1),
+  //         });
+  //       }
+
+  //       // --- Part 3: Fetch Milestones for Summary ---
+  //       const { data: milestones, error: milestonesError } = await supabase
+  //         .from("cycle_milestones")
+  //         .select(
+  //           `
+  //                       id,
+  //                       status,
+  //                       crop_cycles!inner ( is_active, farms (id, name) ),
+  //                       milestone_templates ( name )
+  //                   `
+  //         )
+  //         .eq("crop_cycles.is_active", true);
+
+  //       if (milestonesError) throw milestonesError;
+
+  //       if (milestones) {
+  //         const completed = milestones.filter(
+  //           (m) => m.status === "Completed"
+  //         ).length;
+  //         const total = milestones.length;
+  //         const progress = total > 0 ? (completed / total) * 100 : 0;
+
+  //         const upcoming = milestones.filter((m) => m.status !== "Completed");
+  //         setMilestoneSummary({ upcoming, progress: progress.toFixed(0) });
+  //       }
+  //     } catch (error) {
+  //       console.error("Error fetching dashboard data:", error.message);
+  //     } finally {
+  //       setLoading(false); // Only set loading to false after ALL data is fetched
+  //     }
+  //   };
+
+  //   fetchDashboardData();
+  // }, []);
 
   // Show a loading indicator while fetching data
   if (loading) {
