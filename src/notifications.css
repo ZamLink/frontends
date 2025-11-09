@@ -48,6 +48,7 @@
     border-bottom: 1px solid #f1f5f9; 
     font-size: 1rem;
     font-weight: 600;
+    color: black;
 }
 .notifications-dropdown ul { 
     list-style: none; 
