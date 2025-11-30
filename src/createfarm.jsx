@@ -1,5 +1,5 @@
 // src/pages/CreateFarmPage.jsx
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapContainer, TileLayer, FeatureGroup } from "react-leaflet";
 import { EditControl } from "react-leaflet-draw";
@@ -10,6 +10,16 @@ import Spinner from "./spinner";
 import { toast } from "react-hot-toast";
 import { useAuth } from "./useauth";
 import { leafletToGeoJSON } from "./utils/geometryHelpers";
+
+// Debounce helper for search
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+  return debouncedValue;
+};
 
 // Minimal header for this page
 const MinimalHeader = () => (
@@ -51,9 +61,72 @@ const CreateFarmPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   const navigate = useNavigate();
   const mapRef = useRef(null);
+  const searchRef = useRef(null);
   const { role, loading: authLoading } = useAuth();
+
+  // Debounce search query
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchRef.current && !searchRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Photon API search (free, better than Nominatim)
+  useEffect(() => {
+    const searchLocations = async () => {
+      if (!debouncedSearchQuery || debouncedSearchQuery.length < 3) {
+        setSearchResults([]);
+        return;
+      }
+
+      setIsSearching(true);
+      try {
+        // Photon API - free, no API key needed, better search than Nominatim
+        const response = await fetch(
+          `https://photon.komoot.io/api/?q=${encodeURIComponent(
+            debouncedSearchQuery
+          )}&limit=5&lang=en`
+        );
+        const data = await response.json();
+
+        if (data.features && data.features.length > 0) {
+          const results = data.features.map((feature) => ({
+            id: feature.properties.osm_id || Math.random(),
+            name: feature.properties.name || "",
+            city: feature.properties.city || feature.properties.county || "",
+            state: feature.properties.state || "",
+            country: feature.properties.country || "",
+            lat: feature.geometry.coordinates[1],
+            lng: feature.geometry.coordinates[0],
+            type: feature.properties.type || "",
+          }));
+          setSearchResults(results);
+          setShowSuggestions(true);
+        } else {
+          setSearchResults([]);
+        }
+      } catch (error) {
+        console.error("Search error:", error);
+        setSearchResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    searchLocations();
+  }, [debouncedSearchQuery]);
 
   // Role protection: Only farmers can create farms
   useEffect(() => {
@@ -90,27 +163,32 @@ const CreateFarmPage = () => {
 
       // Convert Leaflet coordinates to GeoJSON format for PostGIS
       // polygonCoords is array of Leaflet LatLng objects: [{lat, lng}, ...]
-      const leafletCoords = polygonCoords.map(p => ({ lat: p.lat, lng: p.lng }));
+      const leafletCoords = polygonCoords.map((p) => ({
+        lat: p.lat,
+        lng: p.lng,
+      }));
       const geoJsonGeometry = leafletToGeoJSON(leafletCoords);
 
       // 1. Create farm using PostGIS RPC function
       const { data: farmResult, error: rpcError } = await supabase.rpc(
-        'create_farm_with_boundary',
+        "create_farm_with_boundary",
         {
           p_user_id: user.id,
           p_name: farmName,
-          p_geojson: geoJsonGeometry
+          p_geojson: geoJsonGeometry,
         }
       );
 
       if (rpcError) {
         // Handle specific PostGIS errors with user-friendly messages
-        if (rpcError.message.includes('Invalid polygon')) {
-          throw new Error("Invalid farm boundary. Please ensure the polygon doesn't intersect itself.");
+        if (rpcError.message.includes("Invalid polygon")) {
+          throw new Error(
+            "Invalid farm boundary. Please ensure the polygon doesn't intersect itself."
+          );
         }
         throw rpcError;
       }
-      
+
       if (!farmResult || !farmResult.farm_id) {
         throw new Error("Failed to create farm in database.");
       }
@@ -137,33 +215,27 @@ const CreateFarmPage = () => {
       setLoading(false);
     }
   };
-  const handleSearch = async (e) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) return;
 
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
-          searchQuery
-        )}`
-      );
-      const data = await response.json();
-
-      if (data && data.length > 0) {
-        const { lat, lon } = data[0];
-        const map = mapRef.current;
-        if (map) {
-          map.setView([lat, lon], 13); // Fly to the location with zoom level 13
-        }
-      } else {
-        // alert("Location not found. Please try a different search term.");
-        toast.error("Location not found!");
-      }
-    } catch (error) {
-      console.error("Error during geocoding search:", error);
-      // alert("Could not perform search. Please check your connection.");
-      toast.error("Could not peform search");
+  // Handle selecting a search result
+  const handleSelectLocation = (result) => {
+    const map = mapRef.current;
+    if (map) {
+      map.setView([result.lat, result.lng], 14);
     }
+    setSearchQuery(result.name || `${result.city}, ${result.state}`);
+    setShowSuggestions(false);
+    toast.success(`Moved to ${result.name || result.city}`);
+  };
+
+  // Format location display
+  const formatLocation = (result) => {
+    const parts = [
+      result.name,
+      result.city,
+      result.state,
+      result.country,
+    ].filter(Boolean);
+    return parts.join(", ");
   };
 
   return (
@@ -175,7 +247,7 @@ const CreateFarmPage = () => {
           <p>Draw the boundaries of your farm on the map below.</p>
         </div>
 
-        {/* Updated form controls with search */}
+        {/* Updated form controls with autocomplete search */}
         <div className="form-controls">
           <input
             type="text"
@@ -184,18 +256,57 @@ const CreateFarmPage = () => {
             value={farmName}
             onChange={(e) => setFarmName(e.target.value)}
           />
-          <form onSubmit={handleSearch} className="search-form">
+          <div className="search-container" ref={searchRef}>
             <div className="search-input-wrapper">
               <span className="material-symbols-outlined">search</span>
               <input
                 type="text"
                 className="search-input"
-                placeholder="Search for a city or state..."
+                placeholder="Search for a location..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() =>
+                  searchResults.length > 0 && setShowSuggestions(true)
+                }
               />
+              {isSearching && (
+                <span className="search-loading">
+                  <span className="material-symbols-outlined spinning">
+                    sync
+                  </span>
+                </span>
+              )}
             </div>
-          </form>
+            {/* Autocomplete suggestions dropdown */}
+            {showSuggestions && searchResults.length > 0 && (
+              <ul className="search-suggestions">
+                {searchResults.map((result) => (
+                  <li
+                    key={result.id}
+                    className="suggestion-item"
+                    onClick={() => handleSelectLocation(result)}
+                  >
+                    <span className="material-symbols-outlined suggestion-icon">
+                      location_on
+                    </span>
+                    <div className="suggestion-text">
+                      <span className="suggestion-name">
+                        {result.name || result.city}
+                      </span>
+                      <span className="suggestion-details">
+                        {[result.city, result.state, result.country]
+                          .filter((v) => v && v !== result.name)
+                          .join(", ")}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
         <div className="map-wrapper">

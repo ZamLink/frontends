@@ -218,6 +218,86 @@ src/pages/CreateFarmPage.css
     box-shadow: 0 0 0 3px rgba(76, 223, 32, 0.2);
 }
 
+/* --- Search Autocomplete Styles --- */
+.search-container {
+    position: relative;
+    flex-grow: 1;
+    max-width: 400px;
+}
+
+.search-loading {
+    position: absolute;
+    right: 0.8rem;
+    color: #9ca3af;
+}
+
+.spinning {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.search-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #d1d5db;
+    border-top: none;
+    border-radius: 0 0 0.5rem 0.5rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 300px;
+    overflow-y: auto;
+    z-index: 1000;
+}
+
+.suggestion-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item:hover {
+    background-color: #f0fdf4;
+}
+
+.suggestion-icon {
+    color: #4cdf20;
+    font-size: 1.25rem;
+}
+
+.suggestion-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+}
+
+.suggestion-name {
+    font-weight: 600;
+    color: #1f2937;
+    font-size: 0.9rem;
+}
+
+.suggestion-details {
+    color: #6b7280;
+    font-size: 0.8rem;
+}
+
 /* --- Map --- */
 .map-wrapper {
     /* 
