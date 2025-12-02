@@ -64,6 +64,7 @@ const CreateFarmPage = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [mapLayer, setMapLayer] = useState("satellite"); // 'satellite' or 'street'
   const navigate = useNavigate();
   const mapRef = useRef(null);
   const searchRef = useRef(null);
@@ -310,6 +311,20 @@ const CreateFarmPage = () => {
         </div>
 
         <div className="map-wrapper">
+          {/* Map layer toggle button */}
+          <button
+            className="map-layer-toggle"
+            onClick={() => setMapLayer(mapLayer === "satellite" ? "street" : "satellite")}
+            title={mapLayer === "satellite" ? "Switch to Street View" : "Switch to Satellite View"}
+          >
+            <span className="material-symbols-outlined">
+              {mapLayer === "satellite" ? "map" : "satellite_alt"}
+            </span>
+            <span className="toggle-label">
+              {mapLayer === "satellite" ? "Street" : "Satellite"}
+            </span>
+          </button>
+
           {/* Added ref to the MapContainer */}
           <MapContainer
             ref={mapRef}
@@ -317,10 +332,17 @@ const CreateFarmPage = () => {
             zoom={5}
             style={{ height: "100%", width: "100%" }}
           >
-            <TileLayer
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            />
+            {mapLayer === "satellite" ? (
+              <TileLayer
+                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                attribution='&copy; <a href="https://www.esri.com/">Esri</a> | Imagery'
+              />
+            ) : (
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              />
+            )}
             <FeatureGroup>
               <EditControl
                 position="topright"

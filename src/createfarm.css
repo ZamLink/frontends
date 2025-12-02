@@ -309,4 +309,41 @@ src/pages/CreateFarmPage.css
     border-radius: 0.75rem;
     overflow: hidden;
     border: 1px solid #e5e7eb;
+    position: relative;
+}
+
+/* --- Map Layer Toggle --- */
+.map-layer-toggle {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.75rem;
+    background-color: #fff;
+    border: 2px solid rgba(0, 0, 0, 0.2);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #374151;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    transition: all 0.2s ease;
+    min-height: 44px; /* Touch-friendly size */
+}
+
+.map-layer-toggle:hover {
+    background-color: #f0fdf4;
+    border-color: #4cdf20;
+}
+
+.map-layer-toggle .material-symbols-outlined {
+    font-size: 1.25rem;
+    color: #4cdf20;
+}
+
+.map-layer-toggle .toggle-label {
+    font-weight: 600;
 }
