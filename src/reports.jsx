@@ -6,7 +6,7 @@ import Sidebar from "./sidebar";
 import "./reports.css";
 import Spinner from "./spinner";
 import { useAuth } from "./useauth";
-import { geoJSONToMapboxURL } from "./utils/geometryHelpers";
+import { getMapboxStaticImageUrl } from "./utils/geometryHelpers";
 import { isCompletedStatus } from "./utils/statusHelpers";
 
 // Report Farm Card Component - Similar to FarmCard but with "View Reports" button
@@ -23,18 +23,23 @@ const ReportFarmCard = ({ farm }) => {
     return "0.00";
   };
 
-  // Construct Mapbox Static Image URL from PostGIS boundary
+  // Construct Mapbox Static Image URL from PostGIS boundary (already converted to GeoJSON by RPC)
   const getMapImageUrl = () => {
     if (!mapboxApiKey) {
       return "https://via.placeholder.com/350x150?text=Map+Preview+Unavailable";
     }
     
-    if (farm.boundary) {
+    // boundary_geojson comes from RPC function using ST_AsGeoJSON
+    if (farm.boundary_geojson) {
       try {
-        const geojson = typeof farm.boundary === 'string' ? JSON.parse(farm.boundary) : farm.boundary;
-        return geoJSONToMapboxURL(geojson, mapboxApiKey);
+        // It might be a string that needs parsing, or already an object
+        let boundaryGeometry = farm.boundary_geojson;
+        if (typeof boundaryGeometry === 'string') {
+          boundaryGeometry = JSON.parse(boundaryGeometry);
+        }
+        return getMapboxStaticImageUrl(boundaryGeometry, mapboxApiKey);
       } catch (e) {
-        console.warn('Failed to parse boundary GeoJSON:', e);
+        console.warn('Failed to parse boundary_geojson:', e);
       }
     }
     
@@ -91,29 +96,23 @@ const ReportsPage = () => {
       }
 
       try {
-        // Base query for farms
-        let query = supabase
-          .from("farms")
-          .select(`
-            id, 
-            name, 
-            area_hectares,
-            boundary,
-            user_id
-          `);
+        let farmsData = [];
 
-        // Role-based filtering: farmer sees only their farms, admin sees all
-        if (role === "farmer") {
-          query = query.eq("user_id", user.id);
+        // Use RPC functions to get farms with proper GeoJSON boundaries
+        // Role-based: farmer sees only their farms, admin sees all
+        if (role === "admin") {
+          const { data, error } = await supabase.rpc('get_all_farms_geojson');
+          if (error) throw error;
+          farmsData = data || [];
+        } else {
+          const { data, error } = await supabase.rpc('get_user_farms_geojson');
+          if (error) throw error;
+          farmsData = data || [];
         }
-
-        const { data: farmsData, error: farmsError } = await query;
-        
-        if (farmsError) throw farmsError;
 
         // For each farm, count completed/verified milestones (these would be reports)
         const farmsWithReportCounts = await Promise.all(
-          (farmsData || []).map(async (farm) => {
+          farmsData.map(async (farm) => {
             // First get the crop cycles for this farm
             const { data: cycles } = await supabase
               .from("crop_cycles")

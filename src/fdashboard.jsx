@@ -12,6 +12,7 @@ import { supabase } from "./createclient"; // Import supabase client
 import Spinner from "./spinner";
 import { toast } from "react-hot-toast";
 import { isVerified, normalizeStatus, MILESTONE_STATUSES } from "./utils/statusHelpers";
+import { getMapboxStaticImageUrl } from "./utils/geometryHelpers";
 const DashboardPage = () => {
   // State to hold the user's profile and loading status
   const [userProfile, setUserProfile] = useState(null);
@@ -25,6 +26,8 @@ const DashboardPage = () => {
     progress: 0,
   });
   const [payments, setPayments] = useState([]);
+  const [farmImages, setFarmImages] = useState({ first: null, second: null });
+  const mapboxApiKey = import.meta.env.VITE_MAPBOX_API_KEY;
 
   // useEffect to fetch data when the component mounts
   // useEffect(() => {
@@ -183,7 +186,7 @@ const DashboardPage = () => {
         const userId = session.user.id;
 
         // --- Fetch all data in parallel ---
-        const [profileRes, farmsRes, milestonesRes, paymentsRes] = await Promise.all([
+        const [profileRes, farmsRes, farmsWithBoundaryRes, milestonesRes, paymentsRes] = await Promise.all([
           supabase
             .from("profiles")
             .select("full_name")
@@ -191,6 +194,8 @@ const DashboardPage = () => {
             .single(),
           // Use stored area_hectares instead of calculating from location_data
           supabase.from("farms").select("id, area_hectares").eq("user_id", userId),
+          // Fetch farms with GeoJSON boundaries for map images
+          supabase.rpc('get_user_farms_geojson'),
           supabase
             .from("cycle_milestones")
             .select(
@@ -238,6 +243,40 @@ const DashboardPage = () => {
             count: farmsRes.data.length,
             totalAcreage: totalAcres.toFixed(1),
           });
+        }
+
+        // Process Farm Images from boundary GeoJSON
+        if (!farmsWithBoundaryRes.error && farmsWithBoundaryRes.data && mapboxApiKey) {
+          const farmsWithBoundary = farmsWithBoundaryRes.data;
+          if (farmsWithBoundary.length > 0) {
+            // Get first farm's boundary for the first card image
+            const firstFarm = farmsWithBoundary[0];
+            let firstImageUrl = null;
+            if (firstFarm.boundary_geojson) {
+              try {
+                let geom = firstFarm.boundary_geojson;
+                if (typeof geom === 'string') geom = JSON.parse(geom);
+                firstImageUrl = getMapboxStaticImageUrl(geom, mapboxApiKey, { width: 400, height: 200 });
+              } catch (e) {
+                console.warn('Failed to generate first farm image:', e);
+              }
+            }
+
+            // Get second farm (or reuse first) for second card image
+            const secondFarm = farmsWithBoundary.length > 1 ? farmsWithBoundary[1] : firstFarm;
+            let secondImageUrl = null;
+            if (secondFarm.boundary_geojson) {
+              try {
+                let geom = secondFarm.boundary_geojson;
+                if (typeof geom === 'string') geom = JSON.parse(geom);
+                secondImageUrl = getMapboxStaticImageUrl(geom, mapboxApiKey, { width: 400, height: 200 });
+              } catch (e) {
+                console.warn('Failed to generate second farm image:', e);
+              }
+            }
+
+            setFarmImages({ first: firstImageUrl, second: secondImageUrl });
+          }
         }
 
         // Process Milestones for Summary - use new status values
@@ -399,7 +438,7 @@ const DashboardPage = () => {
                 </p>
               </div>
               <img
-                src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=400"
+                src={farmImages.first || "https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=400"}
                 alt="Farm landscape"
               />
             </div>
@@ -410,7 +449,7 @@ const DashboardPage = () => {
                 <p className="card-description">Total land under cultivation</p>
               </div>
               <img
-                src="https://images.unsplash.com/photo-1444930694458-01bab732b857?q=80&w=400"
+                src={farmImages.second || "https://images.unsplash.com/photo-1444930694458-01bab732b857?q=80&w=400"}
                 alt="Aerial farm view"
               />
             </div>
