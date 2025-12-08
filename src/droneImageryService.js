@@ -336,22 +336,36 @@ const parseFilename = (filename) => {
 };
 
 /**
- * Check if drone-imagery bucket exists and create if needed
+ * Check if drone-imagery bucket exists by trying to access it
+ * Note: listBuckets() requires admin permissions, so we test by listing files instead
  */
 export const ensureStorageBucket = async () => {
   try {
-    const { data: buckets } = await supabase.storage.listBuckets();
-    const exists = buckets?.some((b) => b.name === "drone-imagery");
+    // Try to list files in the bucket - this will fail if bucket doesn't exist
+    const { data, error } = await supabase.storage
+      .from("drone-imagery")
+      .list("", { limit: 1 });
 
-    if (!exists) {
-      console.warn(
-        "drone-imagery bucket does not exist. Please create it in Supabase dashboard."
-      );
-      return false;
+    // If we get a "Bucket not found" error, the bucket doesn't exist
+    if (error) {
+      if (
+        error.message?.includes("Bucket not found") ||
+        error.statusCode === 404
+      ) {
+        console.warn(
+          "drone-imagery bucket does not exist. Please create it in Supabase dashboard."
+        );
+        return false;
+      }
+      // Other errors (like permission issues) - assume bucket exists but we can't list
+      console.warn("Storage access warning:", error.message);
     }
+
+    // If we got here, bucket exists (even if empty)
     return true;
   } catch (error) {
     console.error("Error checking storage bucket:", error);
-    return false;
+    // On network errors, assume bucket might exist and let upload try
+    return true;
   }
 };

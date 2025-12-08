@@ -6,8 +6,15 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "./createclient";
-import { getPreviewUrl, checkHealth, LAYER_CONFIGS } from "./titiler";
+import {
+  getPreviewUrl,
+  checkHealth,
+  LAYER_CONFIGS,
+  isLocalMode,
+  isTiTilerConfigured,
+} from "./titiler";
 import {
   uploadDroneImagery,
   fetchFromGoogleDrive,
@@ -32,6 +39,7 @@ const DroneImagerySection = ({ farmId, farmName = "Farm" }) => {
 
   // State
   const [serverOnline, setServerOnline] = useState(false);
+  const [isLocal, setIsLocal] = useState(false);
   const [webodmOnline, setWebodmOnline] = useState(false);
   const [droneFlights, setDroneFlights] = useState([]);
   const [selectedFlight, setSelectedFlight] = useState(null);
@@ -65,17 +73,34 @@ const DroneImagerySection = ({ farmId, farmName = "Farm" }) => {
   const [driveFolderId, setDriveFolderId] = useState("");
   const [fetchingFromDrive, setFetchingFromDrive] = useState(false);
 
-  // Check TiTiler server health
+  // Date picker state
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+  const [searchingByDate, setSearchingByDate] = useState(false);
+
+  // Check TiTiler server health and local mode
   useEffect(() => {
+    // Check if we're in local development mode
+    setIsLocal(isLocalMode());
+
     const checkServer = async () => {
+      // Only check if TiTiler is configured
+      if (!isTiTilerConfigured()) {
+        setServerOnline(false);
+        return;
+      }
       const online = await checkHealth();
       setServerOnline(online);
     };
 
     checkServer();
-    // Recheck every 30 seconds
-    const interval = setInterval(checkServer, 30000);
-    return () => clearInterval(interval);
+    // Recheck every 30 seconds (only in local mode)
+    if (isLocalMode()) {
+      const interval = setInterval(checkServer, 30000);
+      return () => clearInterval(interval);
+    }
   }, []);
 
   // Check WebODM server health
@@ -267,6 +292,66 @@ const DroneImagerySection = ({ farmId, farmName = "Farm" }) => {
     }
   };
 
+  // Handle search by date
+  const handleSearchByDate = async () => {
+    if (!selectedDate) {
+      toast.error("Please select a date");
+      return;
+    }
+
+    setSearchingByDate(true);
+
+    try {
+      // Search for flights on the selected date
+      const { data, error } = await supabase
+        .from("drone_flights")
+        .select(
+          `
+          *,
+          drone_imagery_layers(*)
+        `
+        )
+        .eq("farm_id", farmId)
+        .eq("flight_date", selectedDate);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        // Found imagery for this date
+        const flight = {
+          id: data[0].id,
+          date: data[0].flight_date.replace(/-/g, ""),
+          displayDate: data[0].flight_date,
+          pilotName: data[0].pilot_name,
+          droneModel: data[0].drone_model,
+          altitude: data[0].altitude_meters,
+          layers: data[0].drone_imagery_layers.map((l) => l.layer_type),
+          layersData: data[0].drone_imagery_layers,
+        };
+
+        setSelectedFlight(flight);
+        if (flight.layers.length > 0) {
+          setActiveLayerType(flight.layers[0]);
+        }
+        setImageError(false);
+        toast.success(`Found imagery from ${formatDate(selectedDate)}`);
+        setShowDatePicker(false);
+      } else {
+        toast.error(`No imagery found for ${formatDate(selectedDate)}`);
+      }
+    } catch (error) {
+      console.error("Date search error:", error);
+      toast.error("Failed to search for imagery");
+    } finally {
+      setSearchingByDate(false);
+    }
+  };
+
+  // Get available dates for the date picker (dates with imagery)
+  const getAvailableDates = useCallback(() => {
+    return droneFlights.map((f) => f.displayDate);
+  }, [droneFlights]);
+
   // Handle raw image processing with WebODM
   const handleProcessRawImages = async () => {
     if (rawFiles.length < 3) {
@@ -397,15 +482,29 @@ const DroneImagerySection = ({ farmId, farmName = "Farm" }) => {
 
   // Get preview URL - use Supabase storage URL for TiTiler
   const getPreviewImageUrl = useCallback(() => {
-    if (!selectedFlight) return null;
+    if (!selectedFlight) {
+      console.log("No selected flight");
+      return null;
+    }
+
+    console.log("Selected flight:", selectedFlight);
+    console.log("Active layer type:", activeLayerType);
+    console.log("Layers data:", selectedFlight.layersData);
 
     const layerData = selectedFlight.layersData?.find(
       (l) => l.layer_type === activeLayerType
     );
-    if (!layerData) return null;
+    if (!layerData) {
+      console.log("No layer data found for type:", activeLayerType);
+      return null;
+    }
+
+    console.log("Layer data found:", layerData);
 
     // Get the public URL from Supabase storage
     const publicUrl = getImageryUrl(farmId, layerData.filename);
+    console.log("Public URL:", publicUrl);
+
     const config = LAYER_CONFIGS[activeLayerType] || {};
 
     // Build TiTiler preview URL with the public storage URL
@@ -423,7 +522,10 @@ const DroneImagerySection = ({ farmId, farmName = "Farm" }) => {
       params.append("rescale", config.rescale);
     }
 
-    return `${TITILER_URL}/cog/preview?${params.toString()}`;
+    const finalUrl = `${TITILER_URL}/cog/preview?${params.toString()}`;
+    console.log("TiTiler URL:", finalUrl);
+
+    return finalUrl;
   }, [selectedFlight, activeLayerType, farmId]);
 
   // Fallback: Get preview URL from local files (for backwards compatibility)
@@ -514,7 +616,11 @@ const DroneImagerySection = ({ farmId, farmName = "Farm" }) => {
           ) : (
             <span
               className="server-status offline"
-              title="TiTiler server offline"
+              title={
+                isLocal
+                  ? "TiTiler server offline - run docker-compose up"
+                  : "Local setup required"
+              }
             >
               ●
             </span>
@@ -552,6 +658,14 @@ const DroneImagerySection = ({ farmId, farmName = "Farm" }) => {
         >
           <span className="material-symbols-outlined">upload_file</span>
           Upload Image
+        </button>
+        <button
+          className="drone-action-btn date-btn"
+          onClick={() => setShowDatePicker(true)}
+          title="Find imagery by date"
+        >
+          <span className="material-symbols-outlined">calendar_month</span>
+          By Date
         </button>
         <button
           className="drone-action-btn drive-btn"
@@ -629,9 +743,21 @@ const DroneImagerySection = ({ farmId, farmName = "Farm" }) => {
         {!serverOnline ? (
           <div className="drone-placeholder">
             <span className="material-symbols-outlined">cloud_off</span>
-            <p>TiTiler server is offline</p>
-            <code className="server-command">docker-compose up -d</code>
-            <small>Run this command in the titiler-local folder</small>
+            {isLocal ? (
+              <>
+                <p>TiTiler server is offline</p>
+                <code className="server-command">docker-compose up -d</code>
+                <small>Run this command in the titiler-local folder</small>
+              </>
+            ) : (
+              <>
+                <p>Drone imagery requires local setup</p>
+                <small>
+                  This feature is available in development mode only. Run the
+                  app locally with TiTiler to view drone imagery.
+                </small>
+              </>
+            )}
           </div>
         ) : droneFlights.length === 0 ? (
           <div className="drone-placeholder">
@@ -748,375 +874,456 @@ const DroneImagerySection = ({ farmId, farmName = "Farm" }) => {
         </div>
       )}
 
-      {/* Upload Modal */}
-      {showUploadModal && (
-        <div
-          className="drone-modal-overlay"
-          onClick={() => !processing && setShowUploadModal(false)}
-        >
+      {/* Upload Modal - Rendered via Portal to avoid z-index issues */}
+      {showUploadModal &&
+        createPortal(
           <div
-            className="drone-modal drone-modal-lg"
-            onClick={(e) => e.stopPropagation()}
+            className="drone-modal-overlay"
+            onClick={() => !processing && setShowUploadModal(false)}
+            onMouseMove={(e) => e.stopPropagation()}
+            onMouseOver={(e) => e.stopPropagation()}
           >
-            <div className="drone-modal-header">
-              <h3>Upload Drone Imagery</h3>
-              <button
-                className="close-btn"
-                onClick={() => setShowUploadModal(false)}
-                disabled={processing}
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            {/* Upload Mode Toggle */}
-            <div className="upload-mode-toggle">
-              <button
-                className={uploadMode === "processed" ? "active" : ""}
-                onClick={() => setUploadMode("processed")}
-                disabled={processing}
-              >
-                <span className="material-symbols-outlined">image</span>
-                Pre-processed GeoTIFF
-              </button>
-              <button
-                className={uploadMode === "raw" ? "active" : ""}
-                onClick={() => setUploadMode("raw")}
-                disabled={processing}
-              >
-                <span className="material-symbols-outlined">photo_library</span>
-                Raw Images (Process with WebODM)
-              </button>
-            </div>
-
-            <div className="drone-modal-content">
-              {/* Common fields */}
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Flight Date *</label>
-                  <input
-                    type="date"
-                    value={uploadForm.flightDate}
-                    onChange={(e) =>
-                      setUploadForm({
-                        ...uploadForm,
-                        flightDate: e.target.value,
-                      })
-                    }
-                    disabled={processing}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Pilot Name</label>
-                  <input
-                    type="text"
-                    placeholder="Optional"
-                    value={uploadForm.pilotName}
-                    onChange={(e) =>
-                      setUploadForm({
-                        ...uploadForm,
-                        pilotName: e.target.value,
-                      })
-                    }
-                    disabled={processing}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Drone Model</label>
-                  <input
-                    type="text"
-                    placeholder="e.g., DJI Mavic 3"
-                    value={uploadForm.droneModel}
-                    onChange={(e) =>
-                      setUploadForm({
-                        ...uploadForm,
-                        droneModel: e.target.value,
-                      })
-                    }
-                    disabled={processing}
-                  />
-                </div>
+            <div
+              className="drone-modal drone-modal-lg"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="drone-modal-header">
+                <h3>Upload Drone Imagery</h3>
+                <button
+                  className="close-btn"
+                  onClick={() => setShowUploadModal(false)}
+                  disabled={processing}
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
               </div>
 
-              {/* Processed GeoTIFF Upload */}
-              {uploadMode === "processed" && (
-                <>
-                  <div className="form-group">
-                    <label>GeoTIFF File *</label>
-                    <div className="file-input-wrapper">
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept=".tif,.tiff,image/tiff"
-                        onChange={(e) =>
-                          setUploadForm({
-                            ...uploadForm,
-                            file: e.target.files[0],
-                          })
-                        }
-                      />
-                      {uploadForm.file && (
-                        <span className="file-name">
-                          {uploadForm.file.name}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+              {/* Upload Mode Toggle */}
+              <div className="upload-mode-toggle">
+                <button
+                  className={uploadMode === "processed" ? "active" : ""}
+                  onClick={() => setUploadMode("processed")}
+                  disabled={processing}
+                >
+                  <span className="material-symbols-outlined">image</span>
+                  Pre-processed GeoTIFF
+                </button>
+                <button
+                  className={uploadMode === "raw" ? "active" : ""}
+                  onClick={() => setUploadMode("raw")}
+                  disabled={processing}
+                >
+                  <span className="material-symbols-outlined">
+                    photo_library
+                  </span>
+                  Raw Images (Process with WebODM)
+                </button>
+              </div>
 
+              <div className="drone-modal-content">
+                {/* Common fields */}
+                <div className="form-row">
                   <div className="form-group">
-                    <label>Layer Type *</label>
-                    <select
-                      value={uploadForm.layerType}
+                    <label>Flight Date *</label>
+                    <input
+                      type="date"
+                      value={uploadForm.flightDate}
                       onChange={(e) =>
                         setUploadForm({
                           ...uploadForm,
-                          layerType: e.target.value,
+                          flightDate: e.target.value,
                         })
                       }
-                    >
-                      <option value="rgb">True Color (RGB)</option>
-                      <option value="ndvi">NDVI</option>
-                      <option value="ndre">NDRE</option>
-                      <option value="moisture">Moisture</option>
-                      <option value="thermal">Thermal</option>
-                      <option value="lai">LAI</option>
-                      <option value="gndvi">GNDVI</option>
-                    </select>
+                      disabled={processing}
+                    />
                   </div>
-
-                  {uploading && (
-                    <div className="upload-progress">
-                      <div className="progress-bar">
-                        <div
-                          className="progress-fill"
-                          style={{ width: `${uploadProgress}%` }}
-                        ></div>
-                      </div>
-                      <span>Uploading... {uploadProgress}%</span>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Raw Images Upload for WebODM Processing */}
-              {uploadMode === "raw" && (
-                <>
-                  <div className="webodm-status">
-                    <span
-                      className={`status-indicator ${
-                        webodmOnline ? "online" : "offline"
-                      }`}
-                    ></span>
-                    <span>WebODM: {webodmOnline ? "Online" : "Offline"}</span>
-                    {!webodmOnline && (
-                      <small className="status-help">
-                        Start WebODM: <code>docker-compose up -d</code> in
-                        webodm-local folder
-                      </small>
-                    )}
-                  </div>
-
                   <div className="form-group">
-                    <label>Raw Drone Images * (JPG, PNG - minimum 3)</label>
-                    <div className="file-input-wrapper multi-file">
-                      <input
-                        ref={rawFilesInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,.jpg,.jpeg,.png"
-                        multiple
+                    <label>Pilot Name</label>
+                    <input
+                      type="text"
+                      placeholder="Optional"
+                      value={uploadForm.pilotName}
+                      onChange={(e) =>
+                        setUploadForm({
+                          ...uploadForm,
+                          pilotName: e.target.value,
+                        })
+                      }
+                      disabled={processing}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Drone Model</label>
+                    <input
+                      type="text"
+                      placeholder="e.g., DJI Mavic 3"
+                      value={uploadForm.droneModel}
+                      onChange={(e) =>
+                        setUploadForm({
+                          ...uploadForm,
+                          droneModel: e.target.value,
+                        })
+                      }
+                      disabled={processing}
+                    />
+                  </div>
+                </div>
+
+                {/* Processed GeoTIFF Upload */}
+                {uploadMode === "processed" && (
+                  <>
+                    <div className="form-group">
+                      <label>GeoTIFF File *</label>
+                      <div className="file-input-wrapper">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept=".tif,.tiff,image/tiff"
+                          onChange={(e) =>
+                            setUploadForm({
+                              ...uploadForm,
+                              file: e.target.files[0],
+                            })
+                          }
+                        />
+                        {uploadForm.file && (
+                          <span className="file-name">
+                            {uploadForm.file.name}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Layer Type *</label>
+                      <select
+                        value={uploadForm.layerType}
                         onChange={(e) =>
-                          setRawFiles(Array.from(e.target.files))
+                          setUploadForm({
+                            ...uploadForm,
+                            layerType: e.target.value,
+                          })
                         }
-                        disabled={processing}
-                      />
-                      <div className="drop-zone">
-                        <span className="material-symbols-outlined">
-                          cloud_upload
-                        </span>
-                        <p>Drop images here or click to browse</p>
-                        <small>
-                          Supports JPG, PNG - Select all images from a flight
-                        </small>
-                      </div>
+                      >
+                        <option value="rgb">True Color (RGB)</option>
+                        <option value="ndvi">NDVI</option>
+                        <option value="ndre">NDRE</option>
+                        <option value="moisture">Moisture</option>
+                        <option value="thermal">Thermal</option>
+                        <option value="lai">LAI</option>
+                        <option value="gndvi">GNDVI</option>
+                      </select>
                     </div>
-                    {rawFiles.length > 0 && (
-                      <div className="selected-files">
-                        <span className="file-count">
-                          {rawFiles.length} files selected
-                        </span>
-                        <span className="file-size">
-                          (
-                          {(
-                            rawFiles.reduce((sum, f) => sum + f.size, 0) /
-                            1024 /
-                            1024
-                          ).toFixed(1)}{" "}
-                          MB)
-                        </span>
-                      </div>
-                    )}
-                  </div>
 
-                  <div className="info-box processing-info">
-                    <span className="material-symbols-outlined">info</span>
-                    <div>
-                      <strong>What happens next:</strong>
-                      <ol>
-                        <li>Images are uploaded to WebODM</li>
-                        <li>WebODM creates an orthomosaic (stitched map)</li>
-                        <li>RGB and NDVI layers are generated</li>
-                        <li>Results appear in your drone imagery</li>
-                      </ol>
-                      <p>
-                        <strong>Processing time:</strong> 5-30 minutes depending
-                        on image count
-                      </p>
-                    </div>
-                  </div>
-
-                  {processing && processingProgress && (
-                    <div className="processing-status">
-                      <div className="processing-step">
-                        <span
-                          className={`step-icon ${processingProgress.step}`}
-                        >
-                          {processingProgress.step === "error" ? (
-                            <span className="material-symbols-outlined">
-                              error
-                            </span>
-                          ) : processingProgress.step === "complete" ? (
-                            <span className="material-symbols-outlined">
-                              check_circle
-                            </span>
-                          ) : (
-                            <div className="loader small"></div>
-                          )}
-                        </span>
-                        <span className="step-message">
-                          {processingProgress.message}
-                        </span>
-                      </div>
-                      {processingProgress.progress !== undefined && (
+                    {uploading && (
+                      <div className="upload-progress">
                         <div className="progress-bar">
                           <div
                             className="progress-fill"
-                            style={{ width: `${processingProgress.progress}%` }}
+                            style={{ width: `${uploadProgress}%` }}
                           ></div>
+                        </div>
+                        <span>Uploading... {uploadProgress}%</span>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* Raw Images Upload for WebODM Processing */}
+                {uploadMode === "raw" && (
+                  <>
+                    <div className="webodm-status">
+                      <span
+                        className={`status-indicator ${
+                          webodmOnline ? "online" : "offline"
+                        }`}
+                      ></span>
+                      <span>WebODM: {webodmOnline ? "Online" : "Offline"}</span>
+                      {!webodmOnline && (
+                        <small className="status-help">
+                          Start WebODM: <code>docker-compose up -d</code> in
+                          webodm-local folder
+                        </small>
+                      )}
+                    </div>
+
+                    <div className="form-group">
+                      <label>Raw Drone Images * (JPG, PNG - minimum 3)</label>
+                      <div className="file-input-wrapper multi-file">
+                        <input
+                          ref={rawFilesInputRef}
+                          type="file"
+                          accept="image/jpeg,image/png,.jpg,.jpeg,.png"
+                          multiple
+                          onChange={(e) =>
+                            setRawFiles(Array.from(e.target.files))
+                          }
+                          disabled={processing}
+                        />
+                        <div className="drop-zone">
+                          <span className="material-symbols-outlined">
+                            cloud_upload
+                          </span>
+                          <p>Drop images here or click to browse</p>
+                          <small>
+                            Supports JPG, PNG - Select all images from a flight
+                          </small>
+                        </div>
+                      </div>
+                      {rawFiles.length > 0 && (
+                        <div className="selected-files">
+                          <span className="file-count">
+                            {rawFiles.length} files selected
+                          </span>
+                          <span className="file-size">
+                            (
+                            {(
+                              rawFiles.reduce((sum, f) => sum + f.size, 0) /
+                              1024 /
+                              1024
+                            ).toFixed(1)}{" "}
+                            MB)
+                          </span>
                         </div>
                       )}
                     </div>
-                  )}
-                </>
-              )}
-            </div>
 
-            <div className="drone-modal-footer">
-              <button
-                className="cancel-btn"
-                onClick={() => setShowUploadModal(false)}
-                disabled={uploading || processing}
-              >
-                Cancel
-              </button>
-              {uploadMode === "processed" ? (
+                    <div className="info-box processing-info">
+                      <span className="material-symbols-outlined">info</span>
+                      <div>
+                        <strong>What happens next:</strong>
+                        <ol>
+                          <li>Images are uploaded to WebODM</li>
+                          <li>WebODM creates an orthomosaic (stitched map)</li>
+                          <li>RGB and NDVI layers are generated</li>
+                          <li>Results appear in your drone imagery</li>
+                        </ol>
+                        <p>
+                          <strong>Processing time:</strong> 5-30 minutes
+                          depending on image count
+                        </p>
+                      </div>
+                    </div>
+
+                    {processing && processingProgress && (
+                      <div className="processing-status">
+                        <div className="processing-step">
+                          <span
+                            className={`step-icon ${processingProgress.step}`}
+                          >
+                            {processingProgress.step === "error" ? (
+                              <span className="material-symbols-outlined">
+                                error
+                              </span>
+                            ) : processingProgress.step === "complete" ? (
+                              <span className="material-symbols-outlined">
+                                check_circle
+                              </span>
+                            ) : (
+                              <div className="loader small"></div>
+                            )}
+                          </span>
+                          <span className="step-message">
+                            {processingProgress.message}
+                          </span>
+                        </div>
+                        {processingProgress.progress !== undefined && (
+                          <div className="progress-bar">
+                            <div
+                              className="progress-fill"
+                              style={{
+                                width: `${processingProgress.progress}%`,
+                              }}
+                            ></div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              <div className="drone-modal-footer">
+                <button
+                  className="cancel-btn"
+                  onClick={() => setShowUploadModal(false)}
+                  disabled={uploading || processing}
+                >
+                  Cancel
+                </button>
+                {uploadMode === "processed" ? (
+                  <button
+                    className="submit-btn"
+                    onClick={handleFileUpload}
+                    disabled={uploading || !uploadForm.file}
+                  >
+                    {uploading ? "Uploading..." : "Upload"}
+                  </button>
+                ) : (
+                  <button
+                    className="submit-btn process-btn"
+                    onClick={handleProcessRawImages}
+                    disabled={
+                      processing || rawFiles.length < 3 || !webodmOnline
+                    }
+                  >
+                    {processing
+                      ? "Processing..."
+                      : `Process ${rawFiles.length} Images`}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* Date Picker Modal - Rendered via Portal */}
+      {showDatePicker &&
+        createPortal(
+          <div
+            className="drone-modal-overlay"
+            onClick={() => setShowDatePicker(false)}
+            onMouseMove={(e) => e.stopPropagation()}
+            onMouseOver={(e) => e.stopPropagation()}
+          >
+            <div
+              className="drone-modal date-picker-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="drone-modal-header">
+                <h3>Find Imagery by Date</h3>
+                <button
+                  className="close-btn"
+                  onClick={() => setShowDatePicker(false)}
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+
+              <div className="drone-modal-content">
+                <p className="modal-description">
+                  Select a date to find drone imagery captured on that day.
+                </p>
+
+                <div className="form-group">
+                  <label>Capture Date *</label>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => setSelectedDate(e.target.value)}
+                    max={new Date().toISOString().split("T")[0]}
+                  />
+                </div>
+
+                {searchingByDate && (
+                  <div className="fetch-progress">
+                    <div className="loader"></div>
+                    <span>Searching for imagery...</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="drone-modal-footer">
+                <button
+                  className="cancel-btn"
+                  onClick={() => setShowDatePicker(false)}
+                  disabled={searchingByDate}
+                >
+                  Cancel
+                </button>
                 <button
                   className="submit-btn"
-                  onClick={handleFileUpload}
-                  disabled={uploading || !uploadForm.file}
+                  onClick={handleSearchByDate}
+                  disabled={searchingByDate || !selectedDate}
                 >
-                  {uploading ? "Uploading..." : "Upload"}
+                  {searchingByDate ? "Searching..." : "Find Imagery"}
                 </button>
-              ) : (
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* Google Drive Modal - Rendered via Portal */}
+      {showDriveModal &&
+        createPortal(
+          <div
+            className="drone-modal-overlay"
+            onClick={() => setShowDriveModal(false)}
+            onMouseMove={(e) => e.stopPropagation()}
+            onMouseOver={(e) => e.stopPropagation()}
+          >
+            <div className="drone-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="drone-modal-header">
+                <h3>Import from Google Drive</h3>
                 <button
-                  className="submit-btn process-btn"
-                  onClick={handleProcessRawImages}
-                  disabled={processing || rawFiles.length < 3 || !webodmOnline}
+                  className="close-btn"
+                  onClick={() => setShowDriveModal(false)}
                 >
-                  {processing
-                    ? "Processing..."
-                    : `Process ${rawFiles.length} Images`}
+                  <span className="material-symbols-outlined">close</span>
                 </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Google Drive Modal */}
-      {showDriveModal && (
-        <div
-          className="drone-modal-overlay"
-          onClick={() => setShowDriveModal(false)}
-        >
-          <div className="drone-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="drone-modal-header">
-              <h3>Import from Google Drive</h3>
-              <button
-                className="close-btn"
-                onClick={() => setShowDriveModal(false)}
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            <div className="drone-modal-content">
-              <p className="modal-description">
-                Enter the Google Drive folder ID where the drone imagery is
-                stored. The folder must be shared with "Anyone with the link".
-              </p>
-
-              <div className="form-group">
-                <label>Google Drive Folder ID *</label>
-                <input
-                  type="text"
-                  placeholder="e.g., 1a2b3c4d5e6f7g8h9i0j"
-                  value={driveFolderId}
-                  onChange={(e) => setDriveFolderId(e.target.value)}
-                />
-                <small className="input-help">
-                  Find this in the folder URL: drive.google.com/drive/folders/
-                  <strong>[FOLDER_ID]</strong>
-                </small>
               </div>
 
-              <div className="info-box">
-                <span className="material-symbols-outlined">info</span>
-                <div>
-                  <strong>Supported file formats:</strong>
-                  <p>GeoTIFF (.tif, .tiff)</p>
-                  <strong>Naming convention:</strong>
-                  <p>farmId_YYYYMMDD_layerType.tif</p>
-                  <p>Example: farm123_20241208_ndvi.tif</p>
+              <div className="drone-modal-content">
+                <p className="modal-description">
+                  Enter the Google Drive folder ID where the drone imagery is
+                  stored. The folder must be shared with "Anyone with the link".
+                </p>
+
+                <div className="form-group">
+                  <label>Google Drive Folder ID *</label>
+                  <input
+                    type="text"
+                    placeholder="e.g., 1a2b3c4d5e6f7g8h9i0j"
+                    value={driveFolderId}
+                    onChange={(e) => setDriveFolderId(e.target.value)}
+                  />
+                  <small className="input-help">
+                    Find this in the folder URL: drive.google.com/drive/folders/
+                    <strong>[FOLDER_ID]</strong>
+                  </small>
                 </div>
+
+                <div className="info-box">
+                  <span className="material-symbols-outlined">info</span>
+                  <div>
+                    <strong>Supported file formats:</strong>
+                    <p>GeoTIFF (.tif, .tiff)</p>
+                    <strong>Naming convention:</strong>
+                    <p>farmId_YYYYMMDD_layerType.tif</p>
+                    <p>Example: farm123_20241208_ndvi.tif</p>
+                  </div>
+                </div>
+
+                {fetchingFromDrive && (
+                  <div className="fetch-progress">
+                    <div className="loader"></div>
+                    <span>Fetching files from Google Drive...</span>
+                  </div>
+                )}
               </div>
 
-              {fetchingFromDrive && (
-                <div className="fetch-progress">
-                  <div className="loader"></div>
-                  <span>Fetching files from Google Drive...</span>
-                </div>
-              )}
+              <div className="drone-modal-footer">
+                <button
+                  className="cancel-btn"
+                  onClick={() => setShowDriveModal(false)}
+                  disabled={fetchingFromDrive}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="submit-btn"
+                  onClick={handleFetchFromDrive}
+                  disabled={fetchingFromDrive || !driveFolderId.trim()}
+                >
+                  {fetchingFromDrive ? "Fetching..." : "Fetch Files"}
+                </button>
+              </div>
             </div>
-
-            <div className="drone-modal-footer">
-              <button
-                className="cancel-btn"
-                onClick={() => setShowDriveModal(false)}
-                disabled={fetchingFromDrive}
-              >
-                Cancel
-              </button>
-              <button
-                className="submit-btn"
-                onClick={handleFetchFromDrive}
-                disabled={fetchingFromDrive || !driveFolderId.trim()}
-              >
-                {fetchingFromDrive ? "Fetching..." : "Fetch Files"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

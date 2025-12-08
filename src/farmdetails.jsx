@@ -1225,6 +1225,9 @@ const FarmDetailsPage = () => {
             )}
           </div>
 
+          {/* Drone Imagery Card - TiTiler Integration */}
+          <DroneImagerySection farmId={farmId} />
+
           {/* NDVI Chart (AgroMonitoring) */}
           <div className="data-card chart-card">
             <h3>NDVI Trend (Last 30 Days)</h3>
@@ -1390,39 +1393,6 @@ const FarmDetailsPage = () => {
             )}
           </div>
 
-          {/* Satellite Image Card */}
-          <div className="data-card image-card">
-            <div className="image-header">
-              <h3>Latest Satellite Image (AgroMonitoring)</h3>
-              <div className="image-toggle">
-                <button
-                  onClick={() => setImageType("tci")}
-                  className={imageType === "tci" ? "active" : ""}
-                >
-                  True Color
-                </button>
-                <button
-                  onClick={() => setImageType("ndvi")}
-                  className={imageType === "ndvi" ? "active" : ""}
-                >
-                  NDVI
-                </button>
-              </div>
-            </div>
-            {latestImage ? (
-              <img
-                src={getImageUrl()}
-                alt={`${imageType} view`}
-                className="satellite-image"
-              />
-            ) : (
-              <div className="satellite-placeholder">
-                <span className="material-symbols-outlined">satellite_alt</span>
-                <p>No recent satellite imagery found.</p>
-              </div>
-            )}
-          </div>
-
           {/* Sentinel Hub Satellite Imagery Card */}
           <div className="data-card image-card sentinel-card">
             <div className="image-header">
@@ -1493,9 +1463,6 @@ const FarmDetailsPage = () => {
               </div>
             )}
           </div>
-
-          {/* Drone Imagery Card - TiTiler Integration */}
-          <DroneImagerySection farmId={farmId} />
         </div>
       </main>
       <Modal

@@ -20,6 +20,11 @@ body {
   box-sizing: border-box;
 }
 
+/* Ensure toast notifications appear above modals */
+.Toastify__toast-container {
+  z-index: 999999 !important;
+}
+
 /* Add this to handle dark mode if you plan on it later */
 @media (prefers-color-scheme: dark) {
   :root {

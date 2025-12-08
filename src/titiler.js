@@ -4,7 +4,17 @@
  * Handles COG tile serving with dynamic styling
  */
 
-const TITILER_URL = import.meta.env.VITE_TITILER_URL || "http://localhost:8000";
+const TITILER_URL = import.meta.env.VITE_TITILER_URL || "";
+
+// Check if we're in a production environment (no local TiTiler)
+export const isLocalMode = () => {
+  return TITILER_URL && TITILER_URL.includes("localhost");
+};
+
+// Check if TiTiler is configured at all
+export const isTiTilerConfigured = () => {
+  return !!TITILER_URL && TITILER_URL.length > 0;
+};
 
 /**
  * Build tile URL for Leaflet TileLayer
@@ -168,8 +178,20 @@ export const LAYER_CONFIGS = {
  * Check if TiTiler server is available
  */
 export const checkHealth = async () => {
+  // If no TiTiler URL configured, return false immediately
+  if (!isTiTilerConfigured()) {
+    return false;
+  }
+
   try {
-    const response = await fetch(`${TITILER_URL}/healthz`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 second timeout
+
+    const response = await fetch(`${TITILER_URL}/healthz`, {
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
     return response.ok;
   } catch {
     return false;
