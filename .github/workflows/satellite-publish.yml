@@ -15,7 +15,8 @@ jobs:
       - name: Trigger Satellite Data Scheduler
         run: |
           response=$(curl -s -w "\n%{http_code}" -X POST \
-            -H "Authorization: Bearer ${{ secrets.SCHEDULER_SECRET }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" \
+            -H "X-Scheduler-Secret: ${{ secrets.SCHEDULER_SECRET }}" \
             ${{ secrets.SUPABASE_URL }}/functions/v1/satellite-data-scheduler)
           
           http_code=$(echo "$response" | tail -n1)
