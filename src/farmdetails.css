@@ -97,8 +97,9 @@
 .card-subtitle {
     font-size: 0.875rem;
     color: #64748b;
-    margin-top: -0.75rem;
-    margin-bottom: 1.5rem;
+    margin-top: 0.25rem;
+    margin-bottom: 1.25rem;
+    text-align: left;
 }
 
 /* --- Specific Card Styles --- */
@@ -937,7 +938,9 @@
 .sentinel-chart-card .card-subtitle {
     color: #64748b;
     font-size: 0.85rem;
-    margin-bottom: 1rem;
+    margin-top: 0.25rem;
+    margin-bottom: 1.25rem;
+    text-align: left;
 }
 
 .sentinel-chart-card .chart-container {
