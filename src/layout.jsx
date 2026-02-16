@@ -2,16 +2,15 @@
 import React from "react";
 import Sidebar from "./sidebar";
 import Header from "./head";
+import "./layout.css";
 
 const MainLayout = ({ children }) => {
   return (
-    <div style={{ display: "flex" }}>
+    <div className="main-layout">
       <Sidebar />
-      <div style={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
+      <div className="main-layout-content">
         <Header />
-        <main
-          style={{ padding: "2.5rem 3rem", background: "#f8fafc", flexGrow: 1 }}
-        >
+        <main>
           {children}
         </main>
       </div>

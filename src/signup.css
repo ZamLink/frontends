@@ -48,7 +48,8 @@
 .form {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem; /* This value works well with the new structure */
+    gap: 1.25rem;
+    /* This value works well with the new structure */
 }
 
 .input-group {
@@ -117,7 +118,8 @@
 }
 
 /* --- Messages --- */
-.error-message, .success-message {
+.error-message,
+.success-message {
     font-size: 0.875rem;
     text-align: center;
     padding: 0.75rem;
@@ -126,13 +128,17 @@
 }
 
 .error-message {
-    color: #991b1b; /* Darker red text */
-    background-color: #fef2f2; /* Light red background */
+    color: #991b1b;
+    /* Darker red text */
+    background-color: #fef2f2;
+    /* Light red background */
 }
 
 .success-message {
-    color: #14532d; /* Darker green text */
-    background-color: #f0fdf4; /* Light green background */
+    color: #14532d;
+    /* Darker green text */
+    background-color: #f0fdf4;
+    /* Light green background */
 }
 
 .submit-btn {
@@ -185,9 +191,27 @@
 }
 
 .validation-error {
-    color: #ef4444; /* Red color for errors */
+    color: #ef4444;
+    /* Red color for errors */
 }
 
 .validation-success {
-    color: #22c55e; /* Green color for success */
+    color: #22c55e;
+    /* Green color for success */
+}
+
+/* --- Mobile Responsive --- */
+@media (max-width: 480px) {
+    .signup-card {
+        padding: 1.5rem;
+        max-width: 100%;
+    }
+
+    .card-title {
+        font-size: 1.5rem;
+    }
+
+    .main-content {
+        padding: 1rem 0.75rem;
+    }
 }

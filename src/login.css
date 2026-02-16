@@ -227,3 +227,20 @@
     font-size: 0.95rem;
     text-align: center;
 }
+
+/* --- Mobile Responsive --- */
+@media (max-width: 480px) {
+    .login-card {
+        padding: 1.5rem;
+        border-radius: 1rem;
+        max-width: 100%;
+    }
+
+    .card-title {
+        font-size: 1.75rem;
+    }
+
+    .main-content {
+        padding: 1rem 0.75rem;
+    }
+}

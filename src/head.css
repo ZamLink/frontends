@@ -8,16 +8,19 @@
     align-items: center;
     justify-content: flex-end;
 }
+
 .header-actions {
     display: flex;
     align-items: center;
     gap: 1.5rem;
 }
+
 .user-menu {
     display: flex;
     align-items: center;
     gap: 1rem;
 }
+
 .user-avatar {
     width: 40px;
     height: 40px;
@@ -30,11 +33,13 @@
     font-weight: 600;
     font-size: 1.2rem;
 }
+
 .user-email {
     display: block;
     font-weight: 500;
     color: #334155;
 }
+
 .logout-button {
     background: none;
     border: none;
@@ -42,4 +47,26 @@
     cursor: pointer;
     padding: 0;
     font-size: 0.875rem;
+}
+
+/* --- Mobile Responsive --- */
+@media (max-width: 768px) {
+    .main-header {
+        padding: 0 1rem;
+        height: 56px;
+    }
+
+    .user-info {
+        display: none;
+    }
+
+    .header-actions {
+        gap: 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .main-header {
+        padding: 0 0.75rem;
+    }
 }

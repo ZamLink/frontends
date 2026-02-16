@@ -2,7 +2,8 @@
 .dashboard-container {
     display: flex;
     min-height: 100vh;
-    background-color: #f9fafb; /* Light grey background */
+    background-color: #f9fafb;
+    /* Light grey background */
 }
 
 .dashboard-main {
@@ -111,7 +112,8 @@ table {
     border-collapse: collapse;
 }
 
-th, td {
+th,
+td {
     padding: 1rem;
     text-align: left;
     border-bottom: 1px solid #f3f4f6;
@@ -141,24 +143,43 @@ tbody tr:last-child td {
     display: inline-block;
 }
 
-.status-pill.in-progress { background-color: #fef9c3; color: #ca8a04; }
-.status-pill.scheduled { background-color: #dbeafe; color: #3b82f6; }
-.status-pill.completed { background-color: #dcfce7; color: #22c55e; }
-.status-pill.paid { background-color: #dcfce7; color: #22c55e; }
+.status-pill.in-progress {
+    background-color: #fef9c3;
+    color: #ca8a04;
+}
+
+.status-pill.scheduled {
+    background-color: #dbeafe;
+    color: #3b82f6;
+}
+
+.status-pill.completed {
+    background-color: #dcfce7;
+    color: #22c55e;
+}
+
+.status-pill.paid {
+    background-color: #dcfce7;
+    color: #22c55e;
+}
+
 .modal-body h2 {
     margin-top: 0;
     font-size: 1.5rem;
     color: #111827;
 }
+
 .modal-body p {
     color: #6b7280;
     margin-bottom: 1.5rem;
 }
+
 .modal-options {
     display: flex;
     flex-direction: column;
     gap: 1rem;
 }
+
 .modal-option-btn {
     display: flex;
     align-items: center;
@@ -173,10 +194,12 @@ tbody tr:last-child td {
     text-align: left;
     color: #111827;
 }
+
 .modal-option-btn:hover {
     background-color: #f3f4f6;
 
 }
+
 .modal-option-btn.disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -187,7 +210,8 @@ tbody tr:last-child td {
 .header-actions {
     display: flex;
     align-items: center;
-    gap: 1rem; /* Adds space between the 'Add Farm' and 'Logout' buttons */
+    gap: 1rem;
+    /* Adds space between the 'Add Farm' and 'Logout' buttons */
 }
 
 .logout-btn {
@@ -195,7 +219,8 @@ tbody tr:last-child td {
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1.25rem;
-    background-color: #f3f4f6; /* A light grey for a secondary button style */
+    background-color: #f3f4f6;
+    /* A light grey for a secondary button style */
     color: #374151;
     font-weight: 600;
     border: 1px solid #e5e7eb;
@@ -205,7 +230,8 @@ tbody tr:last-child td {
 }
 
 .logout-btn:hover {
-    background-color: #e5e7eb; /* Slightly darker on hover */
+    background-color: #e5e7eb;
+    /* Slightly darker on hover */
 }
 
 /* Add to src/pages/DashboardPage.css */
@@ -214,6 +240,7 @@ tbody tr:last-child td {
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
     gap: 1.5rem;
 }
+
 .farm-card-link {
     background-color: #fff;
     padding: 1.5rem;
@@ -223,17 +250,21 @@ tbody tr:last-child td {
     color: black;
     transition: transform 0.2s, box-shadow 0.2s;
 }
+
 .farm-card-link:hover {
     transform: translateY(-5px);
     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
 }
+
 .farm-card-link h3 {
     margin: 0 0 0.5rem 0;
 }
+
 .farm-card-link p {
     color: #4cdf20;
     font-weight: 600;
 }
+
 /* Add these styles to src/pages/DashboardPage.css */
 
 .summary-cards {
@@ -279,9 +310,27 @@ tbody tr:last-child td {
     margin: 0;
 }
 
-.progress-card { background: #fff; padding: 1.5rem; border-radius: 1rem; }
-.main-progress-bar-container { width: 100%; height: 12px; background: #e2e8f0; border-radius: 99px; overflow: hidden; }
-.main-progress-bar { height: 100%; background: #4cdf20; border-radius: 99px};
+.progress-card {
+    background: #fff;
+    padding: 1.5rem;
+    border-radius: 1rem;
+}
+
+.main-progress-bar-container {
+    width: 100%;
+    height: 12px;
+    background: #e2e8f0;
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+.main-progress-bar {
+    height: 100%;
+    background: #4cdf20;
+    border-radius: 99px
+}
+
+;
 /* Add these styles to src/pages/DashboardPage.css */
 
 /* --- Milestone Progress Card --- */
@@ -292,15 +341,19 @@ tbody tr:last-child td {
     border: 1px solid #e2e8f0;
     color: black;
 }
+
 .progress-details {
     margin-bottom: 0.75rem;
-    color:black
+    color: black
 }
+
 .progress-percent {
     font-size: 1rem;
     font-weight: 600;
-    color: #334155; /* Dark color for visibility */
+    color: #334155;
+    /* Dark color for visibility */
 }
+
 .main-progress-bar-container {
     width: 100%;
     height: 12px;
@@ -308,6 +361,7 @@ tbody tr:last-child td {
     border-radius: 999px;
     overflow: hidden;
 }
+
 .main-progress-bar {
     height: 100%;
     background-color: #4cdf20;
@@ -323,29 +377,38 @@ tbody tr:last-child td {
     border: 1px solid #e2e8f0;
     color: black;
 }
+
 .no-data-message {
     padding: 1rem;
-    color: #64748b; /* Dark color for visibility */
+    color: #64748b;
+    /* Dark color for visibility */
 }
+
 table {
     width: 100%;
     border-collapse: collapse;
 }
-th, td {
+
+th,
+td {
     padding: 1rem;
     text-align: left;
     border-bottom: 1px solid #f1f5f9;
-    color: #334155; /* Dark color for visibility */
+    color: #334155;
+    /* Dark color for visibility */
 }
+
 th {
     font-size: 0.75rem;
     text-transform: uppercase;
     color: #64748b;
     font-weight: 600;
 }
+
 tbody tr:last-child td {
     border-bottom: none;
 }
+
 .status-pill {
     padding: 0.25rem 0.75rem;
     border-radius: 9999px;
@@ -353,8 +416,78 @@ tbody tr:last-child td {
     font-weight: 600;
     display: inline-block;
 }
+
 /* Styles for different statuses */
-.status-pill.not-started { background-color: #f1f5f9; color: #64748b; }
-.status-pill.in-progress { background-color: #fef9c3; color: #ca8a04; }
-.status-pill.completed { background-color: #dcfce7; color: #22c55e; }
-.status-pill.paid { background-color: #dcfce7; color: #22c55e; }
+.status-pill.not-started {
+    background-color: #f1f5f9;
+    color: #64748b;
+}
+
+.status-pill.in-progress {
+    background-color: #fef9c3;
+    color: #ca8a04;
+}
+
+.status-pill.completed {
+    background-color: #dcfce7;
+    color: #22c55e;
+}
+
+.status-pill.paid {
+    background-color: #dcfce7;
+    color: #22c55e;
+}
+
+/* --- Mobile Responsive --- */
+@media (max-width: 1024px) {
+    .dashboard-main {
+        padding: 2rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .dashboard-main {
+        padding: 1.5rem 1rem;
+    }
+
+    .dashboard-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .dashboard-title {
+        font-size: 1.75rem;
+    }
+
+    .header-actions {
+        width: 100%;
+        flex-wrap: wrap;
+    }
+
+    .summary-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .farms-list {
+        grid-template-columns: 1fr;
+    }
+
+    .table-card {
+        overflow-x: auto;
+    }
+
+    th,
+    td {
+        padding: 0.75rem 0.5rem;
+        font-size: 0.8rem;
+    }
+
+    .section-title {
+        font-size: 1.25rem;
+    }
+
+    .modal-options {
+        gap: 0.75rem;
+    }
+}

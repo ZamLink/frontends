@@ -1,0 +1,32 @@
+/* src/components/MainLayout.css */
+.main-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+.main-layout-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    /* Prevents flex child overflow */
+}
+
+.main-layout-content>main {
+    padding: 2.5rem 3rem;
+    background: #f8fafc;
+    flex-grow: 1;
+}
+
+/* Mobile: account for bottom tab bar */
+@media (max-width: 768px) {
+    .main-layout {
+        flex-direction: column;
+    }
+
+    .main-layout-content>main {
+        padding: 1.5rem 1rem;
+        padding-bottom: 5rem;
+        /* Space for fixed bottom tab bar */
+    }
+}

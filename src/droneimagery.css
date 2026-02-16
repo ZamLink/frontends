@@ -53,8 +53,15 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 .panel-content {
@@ -168,7 +175,7 @@
   gap: 10px;
 }
 
-.stats-grid > div {
+.stats-grid>div {
   background: #f9fafb;
   padding: 10px;
   border-radius: 8px;
@@ -218,37 +225,34 @@
 }
 
 .legend-bar.ndvi {
-  background: linear-gradient(to right, 
-    #d73027 0%, 
-    #fc8d59 15%, 
-    #fee08b 30%, 
-    #d9ef8b 50%, 
-    #91cf60 70%, 
-    #1a9850 85%, 
-    #006837 100%
-  );
+  background: linear-gradient(to right,
+      #d73027 0%,
+      #fc8d59 15%,
+      #fee08b 30%,
+      #d9ef8b 50%,
+      #91cf60 70%,
+      #1a9850 85%,
+      #006837 100%);
 }
 
 .legend-bar.moisture {
-  background: linear-gradient(to right, 
-    #f7fbff 0%, 
-    #deebf7 20%, 
-    #9ecae1 40%, 
-    #4292c6 60%, 
-    #2171b5 80%, 
-    #084594 100%
-  );
+  background: linear-gradient(to right,
+      #f7fbff 0%,
+      #deebf7 20%,
+      #9ecae1 40%,
+      #4292c6 60%,
+      #2171b5 80%,
+      #084594 100%);
 }
 
 .legend-bar.thermal {
   background: linear-gradient(to right,
-    #000004 0%,
-    #420a68 20%,
-    #932667 40%,
-    #dd513a 60%,
-    #fca50a 80%,
-    #fcffa4 100%
-  );
+      #000004 0%,
+      #420a68 20%,
+      #932667 40%,
+      #dd513a 60%,
+      #fca50a 80%,
+      #fcffa4 100%);
 }
 
 .legend-label {
@@ -339,7 +343,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Scrollbar */
@@ -592,35 +598,32 @@
 }
 
 .drone-legend .ndvi-gradient {
-  background: linear-gradient(to right, 
-    #d73027 0%, 
-    #fc8d59 15%, 
-    #fee08b 30%, 
-    #d9ef8b 50%, 
-    #91cf60 70%, 
-    #1a9850 85%, 
-    #006837 100%
-  );
+  background: linear-gradient(to right,
+      #d73027 0%,
+      #fc8d59 15%,
+      #fee08b 30%,
+      #d9ef8b 50%,
+      #91cf60 70%,
+      #1a9850 85%,
+      #006837 100%);
 }
 
 .drone-legend .moisture-gradient {
-  background: linear-gradient(to right, 
-    #f7fbff 0%, 
-    #deebf7 25%, 
-    #6baed6 50%, 
-    #2171b5 75%, 
-    #084594 100%
-  );
+  background: linear-gradient(to right,
+      #f7fbff 0%,
+      #deebf7 25%,
+      #6baed6 50%,
+      #2171b5 75%,
+      #084594 100%);
 }
 
 .drone-legend .thermal-gradient {
   background: linear-gradient(to right,
-    #000004 0%,
-    #420a68 25%,
-    #dd513a 50%,
-    #fca50a 75%,
-    #fcffa4 100%
-  );
+      #000004 0%,
+      #420a68 25%,
+      #dd513a 50%,
+      #fca50a 75%,
+      #fcffa4 100%);
 }
 
 .drone-legend .legend-labels {
@@ -737,6 +740,7 @@ body:has(.drone-modal-overlay) {
     opacity: 0;
     transform: translateY(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1271,8 +1275,13 @@ body:has(.drone-modal-overlay) {
 }
 
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .processing-job-item {
@@ -1327,6 +1336,7 @@ body:has(.drone-modal-overlay) {
   min-width: 35px;
   text-align: right;
 }
+
 /* ==============================================
    MAP VIEW STYLES
    ============================================== */
@@ -1443,6 +1453,7 @@ body:has(.drone-modal-overlay) {
     opacity: 0;
     transform: translateY(-8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1516,12 +1527,12 @@ body:has(.drone-modal-overlay) {
   border-color: #4cdf20;
 }
 
-.layer-checkbox-item input[type="checkbox"]:checked + .checkbox-custom {
+.layer-checkbox-item input[type="checkbox"]:checked+.checkbox-custom {
   background: #4cdf20;
   border-color: #4cdf20;
 }
 
-.layer-checkbox-item input[type="checkbox"]:checked + .checkbox-custom::after {
+.layer-checkbox-item input[type="checkbox"]:checked+.checkbox-custom::after {
   content: "";
   width: 5px;
   height: 9px;
@@ -1910,4 +1921,68 @@ body:has(.drone-modal-overlay) {
 .drone-toggle button[title*="Band"],
 .drone-toggle button[title*="nm"] {
   border-left: 3px solid #8b5cf6;
+}
+
+/* --- Mobile Responsive --- */
+@media (max-width: 768px) {
+  .drone-imagery-card {
+    grid-column: auto;
+  }
+
+  .drone-side-panel {
+    position: relative;
+    width: 100%;
+    max-width: 100%;
+    border-left: none;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .drone-map-container {
+    height: 300px;
+  }
+
+  .drone-controls {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .drone-stats-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .drone-modal {
+    width: 95%;
+    max-width: 100%;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .drone-modal-content {
+    max-height: 50vh;
+  }
+
+  .upload-mode-toggle {
+    flex-direction: column;
+  }
+
+  .upload-mode-toggle button {
+    justify-content: flex-start;
+  }
+
+  .view-toggle {
+    width: 100%;
+  }
+
+  .view-toggle button {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .drone-point-panel {
+    max-width: 100%;
+    width: 100%;
+    position: relative;
+  }
 }

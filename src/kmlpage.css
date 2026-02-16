@@ -5,6 +5,7 @@
     min-height: 100vh;
     background-color: #f9fafb;
 }
+
 /* Re-use header styles from CreateFarmPage.css */
 /* .minimal-header, .minimal-header .header-content, .logo-container, .logo-svg, .logo-text, .minimal-nav, .minimal-nav a, .minimal-nav a.active, .profile-icon {
     /* You can copy the styles from CreateFarmPage.css here or use a shared stylesheet */
@@ -18,12 +19,14 @@
 .page-header {
     margin-bottom: 2.5rem;
 }
+
 .page-header h1 {
     font-size: 2.25rem;
     font-weight: 800;
     color: #111827;
     margin: 0;
 }
+
 .page-header p {
     color: #6b7280;
     max-width: 600px;
@@ -36,12 +39,15 @@
     gap: 2rem;
 }
 
-.upload-column h2, .preview-column h2 {
+.upload-column h2,
+.preview-column h2 {
     font-size: 1.125rem;
     font-weight: 600;
     margin-top: 0;
 }
-.upload-column p, .preview-column p {
+
+.upload-column p,
+.preview-column p {
     color: #6b7280;
     margin-top: 0;
 }
@@ -55,22 +61,27 @@
     background-color: #fff;
     transition: border-color 0.2s;
 }
+
 .dropzone.active {
     border-color: #4cdf20;
 }
+
 .upload-icon {
     font-size: 2.5rem;
     color: #4cdf20;
 }
+
 .dropzone-text {
     font-weight: 500;
     color: #374151 !important;
     margin: 0.5rem 0 !important;
 }
+
 .upload-link {
     color: #4cdf20;
     font-weight: 600;
 }
+
 .dropzone-hint {
     font-size: 0.875rem;
     color: #6b7280 !important;
@@ -93,14 +104,17 @@
     gap: 1rem;
     align-items: flex-start;
 }
+
 .info-box .material-symbols-outlined {
     color: #22c55e;
 }
+
 .info-box h3 {
     margin: 0 0 0.25rem 0;
     font-size: 1rem;
     color: #166534;
 }
+
 .info-box p {
     font-size: 0.875rem;
     color: #15803d !important;
@@ -142,9 +156,11 @@
     cursor: pointer;
     transition: opacity 0.2s;
 }
+
 .submit-boundaries-btn:hover {
     opacity: 0.9;
 }
+
 .submit-boundaries-btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -157,13 +173,12 @@
     margin-top: 1.5rem;
 }
 
-src/pages/CreateFarmPage.css
+/* CreateFarmPage.css overrides */
 .create-farm-container {
     display: flex;
     flex-direction: column;
     height: 100vh;
     background-color: #f9fafb;
-    min-width: 100vh;
 }
 
 /* --- Header --- */
@@ -172,16 +187,19 @@ src/pages/CreateFarmPage.css
     border-bottom: 1px solid #e5e7eb;
     padding: 0 2rem;
 }
+
 .minimal-header .header-content {
     display: flex;
     align-items: center;
     height: 70px;
 }
+
 .minimal-nav {
     display: flex;
     gap: 1.5rem;
     margin-left: 3rem;
 }
+
 .minimal-nav a {
     text-decoration: none;
     color: #6b7280;
@@ -189,10 +207,12 @@ src/pages/CreateFarmPage.css
     padding: 0.5rem 0;
     border-bottom: 2px solid transparent;
 }
+
 .minimal-nav a.active {
     color: #4cdf20;
     border-bottom-color: #4cdf20;
 }
+
 .profile-icon {
     width: 40px;
     height: 40px;
@@ -209,18 +229,22 @@ src/pages/CreateFarmPage.css
     display: flex;
     flex-direction: column;
 }
+
 .form-header h1 {
     font-size: 2rem;
     font-weight: 800;
     margin: 0;
 }
+
 .form-header p {
     color: #6b7280;
     margin-top: 0.5rem;
 }
+
 .input-row {
     margin: 1.5rem 0;
 }
+
 .farm-name-input {
     width: 400px;
     padding: 0.8rem 1rem;
@@ -229,6 +253,7 @@ src/pages/CreateFarmPage.css
     border-radius: 0.5rem;
     background-color: #fff;
 }
+
 .farm-name-input:focus {
     outline: none;
     border-color: #4cdf20;
@@ -242,9 +267,11 @@ src/pages/CreateFarmPage.css
     overflow: hidden;
     border: 1px solid #e5e7eb;
 }
+
 .leaflet-container {
     border-radius: 0.75rem;
 }
+
 .leaflet-draw-toolbar {
     margin-top: 10px !important;
     margin-right: 10px !important;
@@ -259,26 +286,32 @@ src/pages/CreateFarmPage.css
     justify-content: flex-end;
     gap: 1rem;
 }
-.cancel-btn, .save-btn {
+
+.cancel-btn,
+.save-btn {
     padding: 0.75rem 1.5rem;
     border-radius: 0.5rem;
     font-weight: 600;
     border: 1px solid #d1d5db;
     cursor: pointer;
 }
+
 .cancel-btn {
     background-color: #fff;
     color: #374151;
 }
+
 .save-btn {
     background-color: #4cdf20;
     color: #111827;
     border-color: transparent;
 }
+
 .save-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
 }
+
 .error-message-farm {
     text-align: right;
     color: #ef4444;
@@ -299,8 +332,9 @@ src/pages/CreateFarmPage.css
     background-color: #fff;
     border-bottom: 1px solid #e5e7eb;
     padding: 0 2rem;
-    flex-shrink: 0; 
+    flex-shrink: 0;
 }
+
 .minimal-header .header-content {
     display: flex;
     align-items: center;
@@ -309,17 +343,20 @@ src/pages/CreateFarmPage.css
 
 .create-farm-main {
     flex-grow: 1;
-   
-    padding: 1.5rem 3rem; 
+
+    padding: 1.5rem 3rem;
     display: flex;
     flex-direction: column;
-    overflow: hidden; /* Prevents scrollbars on the main container */
+    overflow: hidden;
+    /* Prevents scrollbars on the main container */
 }
+
 .form-header h1 {
     font-size: 2rem;
     font-weight: 800;
     margin: 0;
 }
+
 .form-header p {
     color: #6b7280;
     margin-top: 0.5rem;
@@ -331,8 +368,10 @@ src/pages/CreateFarmPage.css
     gap: 1.5rem;
     align-items: center;
     margin: 1.5rem 0;
-    flex-shrink: 0; /* Prevents this section from shrinking */
+    flex-shrink: 0;
+    /* Prevents this section from shrinking */
 }
+
 .farm-name-input {
     width: 350px;
     padding: 0.8rem 1rem;
@@ -340,8 +379,9 @@ src/pages/CreateFarmPage.css
     border: 1px solid #d1d5db;
     border-radius: 0.5rem;
     background-color: #fff;
-    color:black
+    color: black
 }
+
 .farm-name-input:focus {
     outline: none;
     border-color: #4cdf20;
@@ -352,25 +392,30 @@ src/pages/CreateFarmPage.css
     flex-grow: 1;
     max-width: 400px;
 }
+
 .search-input-wrapper {
     position: relative;
     display: flex;
     align-items: center;
 }
+
 .search-input-wrapper .material-symbols-outlined {
     position: absolute;
     left: 0.8rem;
     color: #9ca3af;
 }
+
 .search-input {
     width: 100%;
-    padding: 0.8rem 1rem 0.8rem 2.5rem; /* Left padding for icon */
+    padding: 0.8rem 1rem 0.8rem 2.5rem;
+    /* Left padding for icon */
     font-size: 1rem;
     border: 1px solid #d1d5db;
     border-radius: 0.5rem;
     background-color: #fff;
-    color:black
+    color: black
 }
+
 .search-input:focus {
     outline: none;
     border-color: #4cdf20;
@@ -388,4 +433,27 @@ src/pages/CreateFarmPage.css
     border-radius: 0.75rem;
     overflow: hidden;
     border: 1px solid #e5e7eb;
+}
+
+/* --- Mobile Responsive --- */
+@media (max-width: 768px) {
+    .upload-kml-main {
+        padding: 1.5rem 1rem;
+    }
+
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .page-header h1 {
+        font-size: 1.75rem;
+    }
+
+    .map-preview-box {
+        height: 250px;
+    }
+
+    .upload-kml-footer {
+        padding: 1rem;
+    }
 }

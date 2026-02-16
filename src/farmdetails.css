@@ -2,21 +2,26 @@
 .farm-details-container {
     display: flex;
     min-height: 100vh;
-    background-color: #f8fafc; /* Lighter, cleaner background */
+    background-color: #f8fafc;
+    /* Lighter, cleaner background */
 }
+
 .farm-details-main {
     flex-grow: 1;
     padding: 2.5rem 3rem;
 }
+
 .page-title-section {
     margin-bottom: 2.5rem;
 }
+
 .farm-name-title {
     font-size: 2.5rem;
     font-weight: 800;
     margin: 0;
     color: #1e293b;
 }
+
 .farm-subtitle {
     font-size: 1.125rem;
     color: #64748b;
@@ -33,6 +38,7 @@
     font-size: 1.25rem;
     color: #64748b;
 }
+
 .loader {
     border: 4px solid #f3f3f3;
     border-top: 4px solid #4cdf20;
@@ -42,7 +48,17 @@
     animation: spin 1s linear infinite;
     margin-bottom: 1rem;
 }
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
 .error-icon {
     font-size: 3rem;
     color: #ef4444;
@@ -64,10 +80,12 @@
     box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
 }
+
 .data-card:hover {
     transform: translateY(-5px);
     box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.07), 0 4px 6px -4px rgb(0 0 0 / 0.07);
 }
+
 .data-card h3 {
     margin-top: 0;
     margin-bottom: 1rem;
@@ -75,6 +93,7 @@
     font-weight: 600;
     color: #334155;
 }
+
 .card-subtitle {
     font-size: 0.875rem;
     color: #64748b;
@@ -89,17 +108,20 @@
     align-items: center;
     gap: 1rem;
 }
+
 .weather-content img {
     width: 100px;
     height: 100px;
     margin-top: -10px;
 }
+
 .temperature {
     font-size: 2.75rem;
     font-weight: 700;
     color: #1e293b;
     line-height: 1;
 }
+
 .description {
     text-transform: capitalize;
     color: #64748b;
@@ -111,11 +133,13 @@
     flex-direction: column;
     gap: 1.5rem;
 }
+
 .metric-item {
     display: flex;
     align-items: center;
     gap: 1rem;
 }
+
 .metric-icon {
     font-size: 2rem;
     color: #4cdf20;
@@ -123,11 +147,13 @@
     padding: 0.5rem;
     border-radius: 50%;
 }
+
 .metric-label {
     font-size: 0.875rem;
     color: #64748b;
     margin: 0;
 }
+
 .metric-value {
     font-size: 1.5rem;
     font-weight: 600;
@@ -138,19 +164,23 @@
 .chart-card {
     grid-column: 1 / -1;
 }
+
 .chart-container {
-    height: 300px; /* Give the chart a fixed height */
+    height: 300px;
+    /* Give the chart a fixed height */
 }
 
 .image-card {
     grid-column: 1 / -1;
 }
+
 .image-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 1rem;
 }
+
 .image-toggle button {
     padding: 0.5rem 1rem;
     border: 1px solid #d1d5db;
@@ -158,6 +188,7 @@
     cursor: pointer;
     font-weight: 500;
 }
+
 /* ... (toggle button styles remain the same) ... */
 .satellite-image {
     width: 100%;
@@ -166,6 +197,7 @@
     background-color: #f3f4f6;
     border: 1px solid #e2e8f0;
 }
+
 .satellite-placeholder {
     display: flex;
     flex-direction: column;
@@ -176,6 +208,7 @@
     background-color: #f8fafc;
     color: #94a3b8;
 }
+
 .satellite-placeholder .material-symbols-outlined {
     font-size: 3rem;
     margin-bottom: 0.5rem;
@@ -197,10 +230,12 @@
 
     /* --- Layout & Styling --- */
     display: block;
-    position: relative; /* Crucial for the overlay */
+    position: relative;
+    /* Crucial for the overlay */
     height: 150px;
     border-radius: 1rem;
-    overflow: hidden; /* Ensures overlay respects the border-radius */
+    overflow: hidden;
+    /* Ensures overlay respects the border-radius */
     text-decoration: none;
     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     transition: transform 0.2s ease-in-out, box-shadow 0.3s ease-in-out;
@@ -219,24 +254,28 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background-color: rgba(20, 40, 30, 0.5); /* A dark green semi-transparent overlay */
+    background-color: rgba(20, 40, 30, 0.5);
+    /* A dark green semi-transparent overlay */
     z-index: 1;
     transition: background-color 0.3s;
 }
 
 .farm-card-link:hover::before {
-    background-color: rgba(20, 40, 30, 0.4); /* Lighten overlay on hover */
+    background-color: rgba(20, 40, 30, 0.4);
+    /* Lighten overlay on hover */
 }
 
 /* --- Content Styling --- */
 .farm-card-content {
-    position: relative; /* Puts content above the overlay */
+    position: relative;
+    /* Puts content above the overlay */
     z-index: 2;
     padding: 1.5rem;
     height: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: space-between; /* Pushes title to top and link to bottom */
+    justify-content: space-between;
+    /* Pushes title to top and link to bottom */
     box-sizing: border-box;
 }
 
@@ -245,7 +284,8 @@
     color: #ffffff;
     font-size: 1.5rem;
     font-weight: 700;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.4); /* Adds depth to text */
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    /* Adds depth to text */
 }
 
 .farm-card-content p {
@@ -255,7 +295,7 @@
     display: flex;
     align-items: center;
     gap: 0.25rem;
-    text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 /* --- Placeholder for when no farms exist --- */
@@ -266,17 +306,21 @@
     text-align: center;
     color: #64748b;
     border: 1px dashed #cbd5e1;
-    grid-column: 1 / -1; /* Make it span all columns */
+    grid-column: 1 / -1;
+    /* Make it span all columns */
 }
+
 /* Add to src/pages/FarmDetailsPage.css */
-.start-cycle-card, .milestone-section {
+.start-cycle-card,
+.milestone-section {
     background-color: #fff;
     padding: 1.5rem;
-    color:black;
+    color: black;
     border-radius: 2rem;
     border: 1px solid #e2e8f0;
     margin-bottom: 1.5rem;
 }
+
 .milestone-item {
     display: flex;
     justify-content: space-between;
@@ -284,15 +328,36 @@
     padding: 1rem 0;
     border-bottom: 1px solid #f1f5f9;
 }
-.milestone-item:last-child { border-bottom: none; }
-.milestone-status { display: flex; align-items: center; gap: 1rem; }
-.verified-badge { padding: 0.25rem 0.75rem; border-radius: 99px; font-size: 0.75rem; background-color: #f1f5f9; color: #64748b; }
-.verified-badge.verified { background-color: #dcfce7; color: #16a34a; }
-.start-btn{
+
+.milestone-item:last-child {
+    border-bottom: none;
+}
+
+.milestone-status {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.verified-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 99px;
+    font-size: 0.75rem;
+    background-color: #f1f5f9;
+    color: #64748b;
+}
+
+.verified-badge.verified {
+    background-color: #dcfce7;
+    color: #16a34a;
+}
+
+.start-btn {
     border-radius: 2rem;
     background-color: green;
-    padding:5;
+    padding: 5;
 }
+
 /* Add these styles to src/pages/FarmDetailsPage.css */
 
 /* --- Start Cycle Modal Styles --- */
@@ -381,7 +446,8 @@
 /* Style for the static status pill shown to admins */
 .milestone-status .status-pill.role-view {
     font-weight: 600;
-    width: 100px; /* Give it a fixed width for alignment */
+    width: 100px;
+    /* Give it a fixed width for alignment */
     text-align: center;
 }
 
@@ -400,6 +466,7 @@
     background-color: #dcfce7;
     color: #16a34a;
 }
+
 .verify-btn.verify:hover {
     background-color: #bbf7d0;
 }
@@ -409,6 +476,7 @@
     background-color: #fee2e2;
     color: #dc2626;
 }
+
 .verify-btn.unverify:hover {
     background-color: #fecaca;
 }
@@ -874,4 +942,114 @@
 
 .sentinel-chart-card .chart-container {
     height: 200px;
+}
+
+/* --- Mobile Responsive --- */
+@media (max-width: 1024px) {
+    .farm-details-main {
+        padding: 2rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .farm-details-main {
+        padding: 1.5rem 1rem;
+    }
+
+    .farm-name-title {
+        font-size: 1.75rem;
+    }
+
+    .farm-subtitle {
+        font-size: 1rem;
+    }
+
+    .data-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-card {
+        grid-column: auto;
+    }
+
+    .image-card {
+        grid-column: auto;
+    }
+
+    .weather-content {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .weather-content img {
+        margin: 0 auto;
+    }
+
+    .current-weather-card .weather-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .sentinel-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .image-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .sentinel-toggle {
+        gap: 0.25rem;
+    }
+
+    .image-toggle {
+        flex-wrap: wrap;
+    }
+
+    .milestone-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .milestone-status {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .crop-selector {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .drone-imagery-card {
+        grid-column: auto;
+    }
+
+    .satellite-imagery-card {
+        grid-column: auto;
+    }
+
+    .sentinel-chart-card .chart-container {
+        height: 160px;
+    }
+
+    .chart-container {
+        height: 220px;
+    }
+}
+
+@media (max-width: 480px) {
+    .farm-details-main {
+        padding: 1rem 0.75rem;
+    }
+
+    .farm-name-title {
+        font-size: 1.5rem;
+    }
+
+    .temperature {
+        font-size: 2rem;
+    }
 }
