@@ -24,10 +24,11 @@
     /* Removes underline from link */
 }
 
-.logo-svg {
+.logo-img {
     width: 2rem;
     height: 2rem;
-    color: #4cdf20;
+    object-fit: contain;
+    border-radius: 0.25rem;
 }
 
 .logo-text {
