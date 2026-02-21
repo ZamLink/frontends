@@ -433,7 +433,7 @@ const FarmDetailsPage = () => {
   const [milestoneToVerify, setMilestoneToVerify] = useState(null);
 
   // --- Plant Counter AI State ---
-  const PC_API = "http://localhost:8000";
+  const PC_API = import.meta.env.VITE_COMPUTE_API_URL ?? "http://localhost:8001";
   const [pcFile, setPcFile] = useState(null);
   const [pcJobId, setPcJobId] = useState(null);
   const [pcStatus, setPcStatus] = useState("idle"); // idle | uploading | processing | completed | failed
