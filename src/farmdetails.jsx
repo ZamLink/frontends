@@ -432,6 +432,20 @@ const FarmDetailsPage = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [milestoneToVerify, setMilestoneToVerify] = useState(null);
 
+  // --- Plant Counter AI State ---
+  const PC_API = "http://localhost:8000";
+  const [pcFile, setPcFile] = useState(null);
+  const [pcJobId, setPcJobId] = useState(null);
+  const [pcStatus, setPcStatus] = useState("idle"); // idle | uploading | processing | completed | failed
+  const [pcProgress, setPcProgress] = useState(0);
+  const [pcMessage, setPcMessage] = useState("");
+  const [pcResult, setPcResult] = useState(null);
+  const [pcOutputType, setPcOutputType] = useState("counting");
+  const [pcImageUrl, setPcImageUrl] = useState(null);
+  const [pcOriginalUrl, setPcOriginalUrl] = useState(null); // preview of the original uploaded image
+  const [pcDragOver, setPcDragOver] = useState(false);
+  const pcPollRef = React.useRef(null);
+
   useEffect(() => {
     const fetchFarmData = async () => {
       setLoading(true);
@@ -706,6 +720,103 @@ const FarmDetailsPage = () => {
     } catch (error) {
       console.error("Status change error:", error);
       toast.error(error.message || "Error updating status");
+    }
+  };
+
+  // --- Plant Counter AI Handlers ---
+  const handlePcFile = (file) => {
+    if (!file || !file.type.startsWith("image/")) {
+      toast.error("Please select an image file.");
+      return;
+    }
+    setPcFile(file);
+    setPcStatus("idle");
+    setPcResult(null);
+    if (pcImageUrl) { URL.revokeObjectURL(pcImageUrl); setPcImageUrl(null); }
+    if (pcOriginalUrl) { URL.revokeObjectURL(pcOriginalUrl); }
+    setPcOriginalUrl(URL.createObjectURL(file));
+  };
+
+  const saveResultsToSupabase = async (result, filename) => {
+    try {
+      const { error } = await supabase.from("plant_count_results").insert({
+        farm_id: farmId,
+        image_filename: filename,
+        total_count: result.total_count,
+        average_size_px: result.average_size,
+        processing_time_seconds: result.processing_time_seconds,
+        analyzed_at: new Date().toISOString(),
+      });
+      if (error) {
+        console.warn("Could not save plant count results to DB:", error.message);
+      }
+    } catch (e) {
+      console.warn("Supabase insert skipped:", e.message);
+    }
+  };
+
+  const startPlantCounting = async () => {
+    if (!pcFile) return;
+    if (pcPollRef.current) clearInterval(pcPollRef.current);
+    setPcStatus("uploading");
+    setPcProgress(0);
+    setPcMessage("Uploading image...");
+    setPcResult(null);
+    if (pcImageUrl) { URL.revokeObjectURL(pcImageUrl); setPcImageUrl(null); }
+
+    const formData = new FormData();
+    formData.append("file", pcFile);
+
+    try {
+      const res = await fetch(`${PC_API}/upload`, { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed. Is the server running?");
+      const { job_id } = await res.json();
+      setPcJobId(job_id);
+      setPcStatus("processing");
+
+      pcPollRef.current = setInterval(async () => {
+        try {
+          const statusRes = await fetch(`${PC_API}/status/${job_id}`);
+          const data = await statusRes.json();
+          setPcProgress(data.progress || 0);
+          setPcMessage(data.message || "");
+          if (data.status === "completed") {
+            clearInterval(pcPollRef.current);
+            setPcStatus("completed");
+            setPcResult(data.result);
+            // Fetch the default output image as a blob
+            fetchPcImage(job_id, "counting");
+            // Persist key metrics to Supabase
+            saveResultsToSupabase(data.result, pcFile?.name || "unknown");
+          } else if (data.status === "failed") {
+            clearInterval(pcPollRef.current);
+            setPcStatus("failed");
+            setPcMessage(data.error || "Processing failed");
+            toast.error("Plant counting failed.");
+          }
+        } catch (e) {
+          clearInterval(pcPollRef.current);
+          setPcStatus("failed");
+          setPcMessage("Lost connection to server.");
+        }
+      }, 1500);
+    } catch (err) {
+      setPcStatus("failed");
+      setPcMessage(err.message);
+      toast.error(err.message);
+    }
+  };
+
+  const fetchPcImage = async (jobId, type) => {
+    try {
+      const res = await fetch(`${PC_API}/download/${jobId}/${type}`);
+      if (!res.ok) throw new Error("Could not fetch result image.");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      setPcImageUrl(url);
+      setPcOutputType(type);
+    } catch (e) {
+      toast.error("Could not load result image.");
     }
   };
 
@@ -1366,6 +1477,165 @@ const FarmDetailsPage = () => {
 
           {/* Sentinel Hub Satellite Imagery - Interactive Map */}
           <SatelliteImagerySection farmId={farmId} coords={farmCoords} />
+
+          {/* ===== Plant Counter AI Section ===== */}
+          <div className="data-card pc-card">
+            <div className="pc-header">
+              <div className="pc-header-icon">
+                <span className="material-symbols-outlined">biotech</span>
+              </div>
+              <div>
+                <h3>Plant Counter AI</h3>
+                <p className="card-subtitle">Upload a drone or field image to automatically detect, count, and size-estimate plants using the on-device ML model.</p>
+              </div>
+            </div>
+
+            {/* Upload Zone */}
+            {(pcStatus === "idle" || pcStatus === "failed") && (
+              <div
+                className={`pc-upload-zone ${pcDragOver ? "pc-drag-over" : ""} ${pcFile ? "pc-has-file" : ""}`}
+                onDragOver={(e) => { e.preventDefault(); setPcDragOver(true); }}
+                onDragLeave={() => setPcDragOver(false)}
+                onDrop={(e) => { e.preventDefault(); setPcDragOver(false); const f = e.dataTransfer.files[0]; if (f) handlePcFile(f); }}
+                onClick={() => document.getElementById("pc-file-input").click()}
+              >
+                <input
+                  id="pc-file-input"
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={(e) => { if (e.target.files[0]) handlePcFile(e.target.files[0]); }}
+                />
+                <span className="pc-upload-icon material-symbols-outlined">
+                  {pcFile ? "check_circle" : "cloud_upload"}
+                </span>
+                <p className="pc-upload-title">
+                  {pcFile ? pcFile.name : "Drag & drop an image, or click to browse"}
+                </p>
+                <p className="pc-upload-sub">
+                  {pcFile
+                    ? `${(pcFile.size / 1024 / 1024).toFixed(2)} MB — ready for analysis`
+                    : "Supports JPG, PNG, TIFF · Max 500 MB"}
+                </p>
+                {pcStatus === "failed" && (
+                  <div className="pc-error-banner">
+                    <span className="material-symbols-outlined">error</span>
+                    <span>{pcMessage}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Analyze Button */}
+            {(pcStatus === "idle" || pcStatus === "failed") && pcFile && (
+              <button className="pc-analyze-btn" onClick={startPlantCounting}>
+                <span className="material-symbols-outlined">play_arrow</span>
+                Run Analysis
+              </button>
+            )}
+
+            {/* Progress */}
+            {(pcStatus === "uploading" || pcStatus === "processing") && (
+              <div className="pc-progress-wrap">
+                <div className="pc-status-label">
+                  <span className="pc-spinner" />
+                  <span>{pcMessage || "Processing..."}</span>
+                  <span className="pc-progress-pct-inline">{Math.round(pcProgress)}%</span>
+                </div>
+                <div className="pc-progress-track">
+                  <div className="pc-progress-fill" style={{ width: `${pcProgress}%` }} />
+                </div>
+              </div>
+            )}
+
+            {/* Results */}
+            {pcStatus === "completed" && pcResult && (
+              <div className="pc-results">
+                {/* Divider */}
+                <div className="pc-section-label">Analysis Summary</div>
+                {/* Stats row */}
+                <div className="pc-stats-row">
+                  <div className="pc-stat-chip pc-stat-green">
+                    <span className="material-symbols-outlined">scatter_plot</span>
+                    <div>
+                      <p className="pc-stat-val">{pcResult.total_count.toLocaleString()}</p>
+                      <p className="pc-stat-lbl">Plants Detected</p>
+                    </div>
+                  </div>
+                  <div className="pc-stat-chip pc-stat-blue">
+                    <span className="material-symbols-outlined">straighten</span>
+                    <div>
+                      <p className="pc-stat-val">{pcResult.average_size?.toFixed(1) ?? "—"} px</p>
+                      <p className="pc-stat-lbl">Avg. Plant Size</p>
+                    </div>
+                  </div>
+                  <div className="pc-stat-chip pc-stat-slate">
+                    <span className="material-symbols-outlined">schedule</span>
+                    <div>
+                      <p className="pc-stat-val">{pcResult.processing_time_seconds?.toFixed(1) ?? "—"} s</p>
+                      <p className="pc-stat-lbl">Processing Time</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Output type tabs */}
+                <div className="pc-section-label" style={{ marginTop: "1.5rem" }}>Output View</div>
+                <div className="pc-tabs">
+                  {[
+                    { key: "counting",      icon: "location_on",  label: "Count Overlay" },
+                    { key: "size_annotated",icon: "crop_free",     label: "Size Annotated" },
+                    { key: "size_colored",  icon: "palette",       label: "Color Coded" },
+                    { key: "heatmap",       icon: "areas",         label: "Density Heatmap" },
+                  ].map(({ key, icon, label }) => (
+                    <button
+                      key={key}
+                      className={`pc-tab-btn ${pcOutputType === key ? "active" : ""}`}
+                      onClick={() => fetchPcImage(pcJobId, key)}
+                    >
+                      <span className="material-symbols-outlined">{icon}</span>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Original vs Result comparison */}
+                <div className="pc-section-label" style={{ marginTop: "1.5rem" }}>Image Comparison</div>
+                <div className="pc-comparison-row">
+                  <div className="pc-comparison-col">
+                    <p className="pc-comparison-label">Original Image</p>
+                    {pcOriginalUrl ? (
+                      <img className="pc-result-img" src={pcOriginalUrl} alt="Original uploaded image" />
+                    ) : (
+                      <div className="pc-img-loading"><span>No preview</span></div>
+                    )}
+                  </div>
+                  <div className="pc-comparison-col">
+                    <p className="pc-comparison-label">AI Output</p>
+                    {pcImageUrl ? (
+                      <img className="pc-result-img" src={pcImageUrl} alt="Plant counting result" />
+                    ) : (
+                      <div className="pc-img-loading">
+                        <span className="pc-spinner" />
+                        <span>Loading output image...</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Reset */}
+                <button className="pc-reset-btn" onClick={() => {
+                  setPcFile(null); setPcStatus("idle"); setPcResult(null);
+                  if (pcImageUrl) { URL.revokeObjectURL(pcImageUrl); setPcImageUrl(null); }
+                  if (pcOriginalUrl) { URL.revokeObjectURL(pcOriginalUrl); setPcOriginalUrl(null); }
+                }}>
+                  <span className="material-symbols-outlined">refresh</span>
+                  New Analysis
+                </button>
+              </div>
+            )}
+          </div>
+          {/* ===== End Plant Counter AI Section ===== */}
+
         </div>
       </main>
       <Modal
