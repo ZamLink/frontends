@@ -38,6 +38,13 @@ import {
   getStatusLabel,
 } from "./webodmService";
 import { toast } from "react-hot-toast";
+import {
+  analyzeByFilename,
+  getJobStatus,
+  getResultImageBlob,
+  getCachedResults,
+  saveResults,
+} from "./computeService";
 import "./droneimagery.css";
 
 // Helper component to fit map to bounds
@@ -126,6 +133,18 @@ const DroneImagerySection = ({ farmId, farmName = "Farm" }) => {
     new Date().toISOString().split("T")[0]
   );
   const [searchingByDate, setSearchingByDate] = useState(false);
+
+  // Plant count analysis state
+  const [analysisStatus, setAnalysisStatus] = useState("idle");
+  const [analysisProgress, setAnalysisProgress] = useState(0);
+  const [analysisMessage, setAnalysisMessage] = useState("");
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [analysisJobId, setAnalysisJobId] = useState(null);
+  const [analysisImageUrl, setAnalysisImageUrl] = useState(null);
+  const [analysisOutputType, setAnalysisOutputType] = useState("counting");
+  const [showAnalysisPanel, setShowAnalysisPanel] = useState(false);
+  const [cachedResult, setCachedResult] = useState(null);
+  const analysisPollRef = useRef(null);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -264,6 +283,130 @@ const DroneImagerySection = ({ farmId, farmName = "Farm" }) => {
   useEffect(() => {
     fetchDroneFlights();
   }, [fetchDroneFlights]);
+
+  // Check cache when selected flight changes
+  useEffect(() => {
+    if (!selectedFlight?.id) {
+      setCachedResult(null);
+      setAnalysisResult(null);
+      setAnalysisStatus("idle");
+      return;
+    }
+    const checkCache = async () => {
+      setAnalysisStatus("loading_cache");
+      const cached = await getCachedResults(selectedFlight.id);
+      if (cached) {
+        setCachedResult(cached);
+        const rd = cached.result_data || {};
+        setAnalysisResult({
+          total_count: rd.total_count,
+          average_size: rd.average_size,
+          processing_time_seconds: cached.processing_time_seconds,
+        });
+        setAnalysisJobId(cached.job_id);
+        setAnalysisStatus("completed");
+      } else {
+        setCachedResult(null);
+        setAnalysisResult(null);
+        setAnalysisStatus("idle");
+      }
+    };
+    checkCache();
+  }, [selectedFlight?.id]);
+
+  // Cleanup analysis polling on unmount
+  useEffect(() => {
+    return () => {
+      if (analysisPollRef.current) clearInterval(analysisPollRef.current);
+    };
+  }, []);
+
+  // Start plant count analysis on current flight image
+  const startAnalysis = async () => {
+    const filename = getCurrentFilename();
+    if (!filename) {
+      toast.error("No image available for analysis");
+      return;
+    }
+
+    setAnalysisStatus("analyzing");
+    setAnalysisProgress(0);
+    setAnalysisMessage("Submitting analysis job...");
+    setAnalysisResult(null);
+    setAnalysisImageUrl(null);
+    setCachedResult(null);
+    setShowAnalysisPanel(true);
+
+    try {
+      const { job_id } = await analyzeByFilename(filename);
+      setAnalysisJobId(job_id);
+      setAnalysisMessage("Job submitted. Processing...");
+
+      // Poll for status
+      analysisPollRef.current = setInterval(async () => {
+        try {
+          const status = await getJobStatus(job_id);
+          setAnalysisProgress(status.progress || 0);
+          setAnalysisMessage(status.message || "Processing...");
+
+          if (status.status === "completed") {
+            clearInterval(analysisPollRef.current);
+            analysisPollRef.current = null;
+            setAnalysisResult(status.result);
+            setAnalysisStatus("completed");
+
+            // Save to Supabase cache
+            const currentLayer = selectedFlight.layersData?.find(
+              (l) => l.layer_type === activeLayerType
+            );
+            await saveResults({
+              farmId,
+              flightId: selectedFlight.id,
+              layerId: currentLayer?.id || null,
+              jobId: job_id,
+              filename,
+              result: status.result,
+            });
+
+            // Load the default visualization
+            try {
+              const url = await getResultImageBlob(job_id, "counting");
+              setAnalysisImageUrl(url);
+              setAnalysisOutputType("counting");
+            } catch {
+              // Visualization may not be available yet
+            }
+          } else if (status.status === "failed") {
+            clearInterval(analysisPollRef.current);
+            analysisPollRef.current = null;
+            setAnalysisStatus("failed");
+            setAnalysisMessage(status.error || "Analysis failed");
+          }
+        } catch {
+          clearInterval(analysisPollRef.current);
+          analysisPollRef.current = null;
+          setAnalysisStatus("failed");
+          setAnalysisMessage("Lost connection to compute server");
+        }
+      }, 2000);
+    } catch (err) {
+      setAnalysisStatus("failed");
+      setAnalysisMessage(err.message || "Failed to submit analysis job");
+    }
+  };
+
+  // Fetch a specific visualization type
+  const fetchAnalysisImage = async (type) => {
+    if (!analysisJobId) return;
+    setAnalysisOutputType(type);
+    setAnalysisImageUrl(null);
+    try {
+      const url = await getResultImageBlob(analysisJobId, type);
+      setAnalysisImageUrl(url);
+    } catch {
+      setAnalysisImageUrl(null);
+    }
+  };
 
   // Handle file upload
   const handleFileUpload = async () => {
@@ -1360,6 +1503,174 @@ const DroneImagerySection = ({ farmId, farmName = "Farm" }) => {
               </div>
             </React.Fragment>
           ))}
+        </div>
+      )}
+
+      {/* Plant Count Analysis */}
+      {selectedFlight && droneFlights.length > 0 && (
+        <div className="drone-analysis-section">
+          <div
+            className="analysis-header"
+            onClick={() => setShowAnalysisPanel(!showAnalysisPanel)}
+          >
+            <span className="material-symbols-outlined">biotech</span>
+            <span className="analysis-header-title">Plant Count Analysis</span>
+            {analysisResult && (
+              <span className="analysis-badge">
+                {analysisResult.total_count?.toLocaleString()} plants
+              </span>
+            )}
+            <span className="material-symbols-outlined analysis-chevron">
+              {showAnalysisPanel ? "expand_less" : "expand_more"}
+            </span>
+          </div>
+
+          {showAnalysisPanel && (
+            <div className="analysis-panel">
+              {/* Idle — show analyze button */}
+              {(analysisStatus === "idle" || analysisStatus === "loading_cache") && (
+                <div className="analysis-idle">
+                  <p className="analysis-description">
+                    Run ML plant counting on this drone image to detect and count
+                    individual plants.
+                  </p>
+                  <button
+                    className="analyze-btn"
+                    onClick={startAnalysis}
+                    disabled={analysisStatus === "loading_cache"}
+                  >
+                    <span className="material-symbols-outlined">query_stats</span>
+                    {analysisStatus === "loading_cache"
+                      ? "Checking cache..."
+                      : "Analyze Image"}
+                  </button>
+                </div>
+              )}
+
+              {/* Analyzing — show progress */}
+              {analysisStatus === "analyzing" && (
+                <div className="analysis-progress">
+                  <div className="pc-progress-track">
+                    <div
+                      className="pc-progress-fill"
+                      style={{ width: `${analysisProgress}%` }}
+                    />
+                  </div>
+                  <div className="analysis-progress-info">
+                    <span className="pc-spinner" />
+                    <span>{analysisMessage}</span>
+                    <span className="analysis-pct">{analysisProgress}%</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Failed */}
+              {analysisStatus === "failed" && (
+                <div className="analysis-failed">
+                  <span className="material-symbols-outlined">error</span>
+                  <span>{analysisMessage}</span>
+                  <button className="re-analyze-btn" onClick={startAnalysis}>
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {/* Completed — show results */}
+              {analysisStatus === "completed" && analysisResult && (
+                <div className="analysis-results">
+                  {/* Stats row */}
+                  <div className="pc-stats-row">
+                    <div className="pc-stat-chip pc-stat-green">
+                      <span className="material-symbols-outlined">eco</span>
+                      <div>
+                        <span className="pc-stat-val">
+                          {analysisResult.total_count?.toLocaleString()}
+                        </span>
+                        <span className="pc-stat-lbl">Plants</span>
+                      </div>
+                    </div>
+                    <div className="pc-stat-chip pc-stat-blue">
+                      <span className="material-symbols-outlined">straighten</span>
+                      <div>
+                        <span className="pc-stat-val">
+                          {analysisResult.average_size?.toFixed(1) ?? "—"}
+                        </span>
+                        <span className="pc-stat-lbl">Avg Size (px)</span>
+                      </div>
+                    </div>
+                    <div className="pc-stat-chip pc-stat-slate">
+                      <span className="material-symbols-outlined">timer</span>
+                      <div>
+                        <span className="pc-stat-val">
+                          {analysisResult.processing_time_seconds?.toFixed(1) ?? "—"}s
+                        </span>
+                        <span className="pc-stat-lbl">Time</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Cached indicator */}
+                  {cachedResult && (
+                    <div className="cached-indicator">
+                      <span className="material-symbols-outlined">cached</span>
+                      Cached result from{" "}
+                      {new Date(cachedResult.analyzed_at).toLocaleString()}
+                    </div>
+                  )}
+
+                  {/* Re-analyze button */}
+                  <button className="re-analyze-btn" onClick={startAnalysis}>
+                    <span className="material-symbols-outlined">refresh</span>
+                    Re-analyze
+                  </button>
+
+                  {/* Visualization tabs */}
+                  {analysisJobId && (
+                    <>
+                      <div className="pc-tabs">
+                        {[
+                          { key: "counting", icon: "tag", label: "Count" },
+                          { key: "size_annotated", icon: "straighten", label: "Size" },
+                          { key: "size_colored", icon: "palette", label: "Color" },
+                          { key: "heatmap", icon: "thermostat", label: "Heatmap" },
+                        ].map((tab) => (
+                          <button
+                            key={tab.key}
+                            className={`pc-tab-btn ${
+                              analysisOutputType === tab.key ? "active" : ""
+                            }`}
+                            onClick={() => fetchAnalysisImage(tab.key)}
+                          >
+                            <span className="material-symbols-outlined">
+                              {tab.icon}
+                            </span>
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
+                      {analysisImageUrl ? (
+                        <img
+                          src={analysisImageUrl}
+                          alt={`${analysisOutputType} visualization`}
+                          className="pc-result-img"
+                        />
+                      ) : (
+                        <div className="viz-unavailable">
+                          <span className="material-symbols-outlined">
+                            image_not_supported
+                          </span>
+                          <span>
+                            Click a tab to load visualization, or images may have
+                            expired (2hr TTL).
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 

@@ -1923,6 +1923,209 @@ body:has(.drone-modal-overlay) {
   border-left: 3px solid #8b5cf6;
 }
 
+/* ===== Plant Count Analysis Panel ===== */
+.drone-analysis-section {
+  margin-top: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: white;
+}
+
+.analysis-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+.analysis-header:hover {
+  background: #f1f5f9;
+}
+
+.analysis-header > .material-symbols-outlined:first-child {
+  font-size: 20px;
+  color: #8b5cf6;
+}
+
+.analysis-header-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  flex: 1;
+}
+
+.analysis-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  background: linear-gradient(135deg, #dcfce7, #bbf7d0);
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #166534;
+}
+
+.analysis-chevron {
+  font-size: 20px;
+  color: #94a3b8;
+  transition: transform 0.2s;
+}
+
+.analysis-panel {
+  padding: 14px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.analysis-idle {
+  text-align: center;
+}
+
+.analysis-description {
+  font-size: 13px;
+  color: #64748b;
+  margin: 0 0 12px;
+  line-height: 1.5;
+}
+
+.analyze-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.analyze-btn:hover:not(:disabled) {
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+  transform: translateY(-1px);
+}
+
+.analyze-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.analyze-btn .material-symbols-outlined {
+  font-size: 20px;
+}
+
+/* Analysis Progress */
+.analysis-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.analysis-progress-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.analysis-pct {
+  margin-left: auto;
+  font-weight: 600;
+  color: #334155;
+}
+
+/* Analysis Failed */
+.analysis-failed {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px;
+  background: #fef2f2;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #dc2626;
+  flex-wrap: wrap;
+}
+
+.analysis-failed > .material-symbols-outlined {
+  font-size: 20px;
+}
+
+/* Results */
+.analysis-results {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cached-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: #f0f9ff;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #0369a1;
+}
+
+.cached-indicator .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.re-analyze-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: white;
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: fit-content;
+}
+
+.re-analyze-btn:hover {
+  border-color: #8b5cf6;
+  color: #7c3aed;
+  background: #f5f3ff;
+}
+
+.re-analyze-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+
+/* Viz unavailable state */
+.viz-unavailable {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 16px;
+  background: #f9fafb;
+  border-radius: 8px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.viz-unavailable .material-symbols-outlined {
+  font-size: 32px;
+  color: #d1d5db;
+}
+
 /* --- Mobile Responsive --- */
 @media (max-width: 768px) {
   .drone-imagery-card {

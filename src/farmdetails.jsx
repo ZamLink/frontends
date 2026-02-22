@@ -285,6 +285,13 @@ ChartJS.register(
   Filler
 );
 import Spinner from "./spinner";
+import {
+  uploadAndAnalyze,
+  getJobStatus as getComputeJobStatus,
+  getResultImageBlob,
+  saveResults as saveComputeResults,
+  verifyMilestone as runMlVerification,
+} from "./computeService";
 // NDVI Chart Component (from AgroMonitoring)
 const NdviChart = ({ data }) => {
   const chartData = {
@@ -432,8 +439,12 @@ const FarmDetailsPage = () => {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [milestoneToVerify, setMilestoneToVerify] = useState(null);
 
+  // ML Verification state
+  const [verificationResult, setVerificationResult] = useState(null);
+  const [verificationLoading, setVerificationLoading] = useState(false);
+  const [verificationError, setVerificationError] = useState(null);
+
   // --- Plant Counter AI State ---
-  const PC_API = import.meta.env.VITE_COMPUTE_API_URL ?? "http://localhost:8001";
   const [pcFile, setPcFile] = useState(null);
   const [pcJobId, setPcJobId] = useState(null);
   const [pcStatus, setPcStatus] = useState("idle"); // idle | uploading | processing | completed | failed
@@ -641,11 +652,49 @@ const FarmDetailsPage = () => {
   };
   const handleApproveClick = (milestone) => {
     setMilestoneToVerify(milestone);
+    setVerificationResult(null);
+    setVerificationError(null);
+    setVerificationLoading(false);
     setShowConfirmDialog(true);
+
+    // Show cached ML results if available
+    if (milestone.agro_augmentation?.verdict) {
+      setVerificationResult({
+        verdict: milestone.agro_augmentation.verdict,
+        overall_confidence: milestone.agro_augmentation.overall_confidence,
+        recommendation: milestone.agro_augmentation.recommendation,
+        report: milestone.agro_augmentation,
+      });
+    }
+  };
+
+  const handleRunVerification = async () => {
+    if (!milestoneToVerify) return;
+    setVerificationLoading(true);
+    setVerificationError(null);
+    try {
+      const result = await runMlVerification(milestoneToVerify.id);
+      setVerificationResult(result);
+      // Update local milestone data with agro_augmentation
+      setCycleMilestones((prev) =>
+        prev.map((m) =>
+          m.id === milestoneToVerify.id
+            ? { ...m, agro_augmentation: result.report || result }
+            : m
+        )
+      );
+    } catch (err) {
+      setVerificationError(err.message);
+    } finally {
+      setVerificationLoading(false);
+    }
   };
 
   const handleConfirmApprove = async () => {
     if (!milestoneToVerify) return;
+
+    const action =
+      verificationResult?.verdict === "MILESTONE_FAILED" ? "reject" : "verify";
 
     try {
       const { data, error } = await supabase.functions.invoke(
@@ -653,7 +702,7 @@ const FarmDetailsPage = () => {
         {
           body: {
             milestoneId: milestoneToVerify.id,
-            action: "verify",
+            action,
           },
         }
       );
@@ -661,15 +710,25 @@ const FarmDetailsPage = () => {
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
 
-      toast.success("Milestone approved successfully");
-      // Update local state for instant UI feedback
-      setCycleMilestones((prev) =>
-        prev.map((m) =>
-          m.id === milestoneToVerify.id
-            ? { ...m, status: MILESTONE_STATUS.VERIFIED }
-            : m
-        )
-      );
+      if (action === "verify") {
+        toast.success("Milestone approved successfully");
+        setCycleMilestones((prev) =>
+          prev.map((m) =>
+            m.id === milestoneToVerify.id
+              ? { ...m, status: MILESTONE_STATUS.VERIFIED }
+              : m
+          )
+        );
+      } else {
+        toast.success("Milestone rejected");
+        setCycleMilestones((prev) =>
+          prev.map((m) =>
+            m.id === milestoneToVerify.id
+              ? { ...m, status: MILESTONE_STATUS.NOT_STARTED }
+              : m
+          )
+        );
+      }
     } catch (error) {
       console.error("Verification error:", error);
       toast.error(error.message || "Error updating verification");
@@ -738,21 +797,11 @@ const FarmDetailsPage = () => {
   };
 
   const saveResultsToSupabase = async (result, filename) => {
-    try {
-      const { error } = await supabase.from("plant_count_results").insert({
-        farm_id: farmId,
-        image_filename: filename,
-        total_count: result.total_count,
-        average_size_px: result.average_size,
-        processing_time_seconds: result.processing_time_seconds,
-        analyzed_at: new Date().toISOString(),
-      });
-      if (error) {
-        console.warn("Could not save plant count results to DB:", error.message);
-      }
-    } catch (e) {
-      console.warn("Supabase insert skipped:", e.message);
-    }
+    await saveComputeResults({
+      farmId,
+      filename,
+      result,
+    });
   };
 
   const startPlantCounting = async () => {
@@ -764,29 +813,21 @@ const FarmDetailsPage = () => {
     setPcResult(null);
     if (pcImageUrl) { URL.revokeObjectURL(pcImageUrl); setPcImageUrl(null); }
 
-    const formData = new FormData();
-    formData.append("file", pcFile);
-
     try {
-      const res = await fetch(`${PC_API}/upload`, { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Upload failed. Is the server running?");
-      const { job_id } = await res.json();
+      const { job_id } = await uploadAndAnalyze(pcFile);
       setPcJobId(job_id);
       setPcStatus("processing");
 
       pcPollRef.current = setInterval(async () => {
         try {
-          const statusRes = await fetch(`${PC_API}/status/${job_id}`);
-          const data = await statusRes.json();
+          const data = await getComputeJobStatus(job_id);
           setPcProgress(data.progress || 0);
           setPcMessage(data.message || "");
           if (data.status === "completed") {
             clearInterval(pcPollRef.current);
             setPcStatus("completed");
             setPcResult(data.result);
-            // Fetch the default output image as a blob
             fetchPcImage(job_id, "counting");
-            // Persist key metrics to Supabase
             saveResultsToSupabase(data.result, pcFile?.name || "unknown");
           } else if (data.status === "failed") {
             clearInterval(pcPollRef.current);
@@ -809,10 +850,7 @@ const FarmDetailsPage = () => {
 
   const fetchPcImage = async (jobId, type) => {
     try {
-      const res = await fetch(`${PC_API}/download/${jobId}/${type}`);
-      if (!res.ok) throw new Error("Could not fetch result image.");
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
+      const url = await getResultImageBlob(jobId, type);
       setPcImageUrl(url);
       setPcOutputType(type);
     } catch (e) {
@@ -904,6 +942,11 @@ const FarmDetailsPage = () => {
                         >
                           {getStatusDisplay(ms.status)}
                         </span>
+                        {ms.agro_augmentation?.overall_confidence != null && (
+                          <span className="ai-confidence-chip">
+                            AI: {(ms.agro_augmentation.overall_confidence * 100).toFixed(0)}%
+                          </span>
+                        )}
                         {!isVerifiedStatus(ms.status) ? (
                           <button
                             onClick={() => handleApproveClick(ms)}
@@ -1671,11 +1714,29 @@ const FarmDetailsPage = () => {
         onClose={() => {
           setShowConfirmDialog(false);
           setMilestoneToVerify(null);
+          setVerificationResult(null);
+          setVerificationError(null);
         }}
         onConfirm={handleConfirmApprove}
-        type="success"
-        title="Approve Milestone Verification?"
-        confirmText="Approve & Release Payment"
+        type={
+          verificationResult?.verdict === "MILESTONE_COMPLETE"
+            ? "success"
+            : verificationResult?.verdict === "MILESTONE_FAILED"
+            ? "danger"
+            : verificationResult?.verdict === "MANUAL_REVIEW_REQUIRED"
+            ? "warning"
+            : "success"
+        }
+        title={
+          verificationResult?.verdict === "MILESTONE_FAILED"
+            ? "Reject Milestone?"
+            : "Approve Milestone Verification?"
+        }
+        confirmText={
+          verificationResult?.verdict === "MILESTONE_FAILED"
+            ? "Reject Milestone"
+            : "Approve & Release Payment"
+        }
         cancelText="Cancel"
       >
         {milestoneToVerify && (
@@ -1687,6 +1748,155 @@ const FarmDetailsPage = () => {
               {" - "}
               {milestoneToVerify.crop_cycles?.crops?.name || "Crop"}
             </p>
+
+            {/* ML Verification Section */}
+            {!verificationResult && !verificationLoading && !verificationError && (
+              <div className="verification-prompt">
+                <button
+                  className="run-verification-btn"
+                  onClick={handleRunVerification}
+                >
+                  <span className="material-symbols-outlined">smart_toy</span>
+                  Run AI Verification
+                </button>
+                <p className="verification-hint">
+                  Analyzes satellite, drone, and IoT data to assess milestone
+                  completion. You can still approve manually without running AI.
+                </p>
+              </div>
+            )}
+
+            {/* Loading */}
+            {verificationLoading && (
+              <div className="verification-loading">
+                <span className="pc-spinner" />
+                <span>Running multi-source verification...</span>
+              </div>
+            )}
+
+            {/* Error */}
+            {verificationError && (
+              <div className="verification-error">
+                <span className="material-symbols-outlined">error</span>
+                <span>{verificationError}</span>
+                <button
+                  className="re-analyze-btn"
+                  onClick={handleRunVerification}
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* ML Results */}
+            {verificationResult && (
+              <div className="verification-results">
+                <div
+                  className={`verdict-badge ${
+                    verificationResult.verdict === "MILESTONE_COMPLETE"
+                      ? "verdict-complete"
+                      : verificationResult.verdict === "MANUAL_REVIEW_REQUIRED"
+                      ? "verdict-review"
+                      : verificationResult.verdict === "MILESTONE_FAILED"
+                      ? "verdict-failed"
+                      : "verdict-unknown"
+                  }`}
+                >
+                  <span className="material-symbols-outlined">
+                    {verificationResult.verdict === "MILESTONE_COMPLETE"
+                      ? "check_circle"
+                      : verificationResult.verdict === "MANUAL_REVIEW_REQUIRED"
+                      ? "help"
+                      : verificationResult.verdict === "MILESTONE_FAILED"
+                      ? "cancel"
+                      : "help"}
+                  </span>
+                  {verificationResult.verdict === "MILESTONE_COMPLETE"
+                    ? "Milestone Complete"
+                    : verificationResult.verdict === "MANUAL_REVIEW_REQUIRED"
+                    ? "Manual Review Required"
+                    : verificationResult.verdict === "MILESTONE_FAILED"
+                    ? "Milestone Failed"
+                    : verificationResult.verdict?.replace(/_/g, " ")}
+                  <span className="verdict-confidence">
+                    {(verificationResult.overall_confidence * 100).toFixed(0)}%
+                  </span>
+                </div>
+
+                {/* Per-source confidence */}
+                <div className="source-confidence-grid">
+                  {[
+                    {
+                      name: "Satellite",
+                      key: "satellite_analysis",
+                      weight: "40%",
+                      icon: "satellite_alt",
+                    },
+                    {
+                      name: "Drone",
+                      key: "drone_analysis",
+                      weight: "35%",
+                      icon: "flight",
+                    },
+                    {
+                      name: "IoT Sensors",
+                      key: "iot_analysis",
+                      weight: "25%",
+                      icon: "sensors",
+                    },
+                  ].map((source) => {
+                    const data =
+                      verificationResult.report?.[source.key] ||
+                      verificationResult[source.key];
+                    const conf = data?.confidence || 0;
+                    const available = data?.status === "ANALYZED";
+                    return (
+                      <div key={source.key} className="source-row">
+                        <div className="source-label">
+                          <span className="material-symbols-outlined">
+                            {source.icon}
+                          </span>
+                          <span>{source.name}</span>
+                          <span className="source-weight">({source.weight})</span>
+                        </div>
+                        {available ? (
+                          <div className="confidence-bar-container">
+                            <div className="confidence-bar">
+                              <div
+                                className="confidence-fill"
+                                style={{
+                                  width: `${conf * 100}%`,
+                                  background:
+                                    conf >= 0.75
+                                      ? "#22c55e"
+                                      : conf >= 0.4
+                                      ? "#f59e0b"
+                                      : "#ef4444",
+                                }}
+                              />
+                            </div>
+                            <span className="confidence-pct">
+                              {(conf * 100).toFixed(0)}%
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="source-no-data">No Data</span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Recommendation */}
+                {verificationResult.recommendation && (
+                  <p className="verification-recommendation">
+                    {verificationResult.recommendation}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Warning box */}
             <div className="confirm-warning-box">
               <span className="material-symbols-outlined">info</span>
               <div>
@@ -1702,16 +1912,8 @@ const FarmDetailsPage = () => {
             </div>
             <div className="confirm-checklist">
               <label className="confirm-checkbox">
-                <input type="checkbox" required />I have reviewed the milestone
-                completion evidence
-              </label>
-              <label className="confirm-checkbox">
-                <input type="checkbox" required />I have verified the
-                agricultural data and metrics
-              </label>
-              <label className="confirm-checkbox">
-                <input type="checkbox" required />I confirm this milestone meets
-                all required criteria
+                <input type="checkbox" required />I confirm this decision based
+                on the evidence above
               </label>
             </div>
           </div>
